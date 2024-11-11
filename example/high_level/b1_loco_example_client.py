@@ -23,6 +23,8 @@ def main():
                 res = client.ChangeMode(RobotMode.kDamping)
             elif input_cmd == "mw":
                 res = client.ChangeMode(RobotMode.kWalking)
+            elif input_cmd == 'mc':
+                res = client.ChangeMode(RobotMode.kCustom)
             elif input_cmd == "w":
                 x, y, z = 0.2, 0.0, 0.0
                 need_print = True

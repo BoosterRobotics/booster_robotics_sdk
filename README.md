@@ -30,7 +30,7 @@ sudo make install
 ```bash
 mkdir build
 cd build
-cmake .. -BUILD_PYTHON_BINDING=on
+cmake .. -DBUILD_PYTHON_BINDING=on
 make
 sudo make install
 ```

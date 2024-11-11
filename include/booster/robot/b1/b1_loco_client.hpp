@@ -19,6 +19,8 @@ public:
     ~B1LocoClient() = default;
 
     void Init();
+
+    void Init(const std::string &robot_name);
     /**
      * @brief Send API request to B1 robot
      * 

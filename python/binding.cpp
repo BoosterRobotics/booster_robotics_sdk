@@ -140,6 +140,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .value("kDamping", robot::RobotMode::kDamping)
         .value("kPrepare", robot::RobotMode::kPrepare)
         .value("kWalking", robot::RobotMode::kWalking)
+        .value("kCustom", robot::RobotMode::kCustom)
         .export_values();
 
     py::enum_<robot::b1::JointIndex>(m, "B1JointIndex")
@@ -188,7 +189,8 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
 
     py::class_<robot::b1::B1LocoClient>(m, "B1LocoClient")
         .def(py::init<>())
-        .def("Init", &robot::b1::B1LocoClient::Init)
+        .def("Init", py::overload_cast<>(&robot::b1::B1LocoClient::Init))
+        .def("Init", py::overload_cast<const std::string &>(&robot::b1::B1LocoClient::Init))
         .def("SendApiRequest", &robot::b1::B1LocoClient::SendApiRequest, py::arg("api_id"), py::arg("param"))
         .def("ChangeMode", &robot::b1::B1LocoClient::ChangeMode, py::arg("mode"))
         .def("Move", &robot::b1::B1LocoClient::Move, py::arg("vx"), py::arg("vy"), py::arg("vyaw"))
