@@ -31,9 +31,9 @@ public:
     }
 
     void InitChannel() {
-        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<booster::msg::LowState>(channel_name_, [this](const void *msg) {
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<booster_interface::msg::LowState>(channel_name_, [this](const void *msg) {
             py::gil_scoped_acquire acquire;
-            const booster::msg::LowState *low_state_msg = static_cast<const booster::msg::LowState *>(msg);
+            const booster_interface::msg::LowState *low_state_msg = static_cast<const booster_interface::msg::LowState *>(msg);
             py_handler_(low_state_msg);
         });
     }
@@ -50,7 +50,7 @@ public:
     }
 
 private:
-    ChannelPtr<booster::msg::LowState> channel_ptr_;
+    ChannelPtr<booster_interface::msg::LowState> channel_ptr_;
     py::function py_handler_;
     const std::string channel_name_ = kTopicLowState;
 };
@@ -62,10 +62,10 @@ public:
     }
 
     void InitChannel() {
-        channel_ptr_ = ChannelFactory::Instance()->CreateSendChannel<booster::msg::LowCmd>(channel_name_);
+        channel_ptr_ = ChannelFactory::Instance()->CreateSendChannel<booster_interface::msg::LowCmd>(channel_name_);
     }
 
-    bool Write(booster::msg::LowCmd *msg) {
+    bool Write(booster_interface::msg::LowCmd *msg) {
         if (channel_ptr_) {
             return channel_ptr_->Write(msg);
         }
@@ -85,7 +85,7 @@ public:
 
 private:
     std::string channel_name_;
-    ChannelPtr<booster::msg::LowCmd> channel_ptr_;
+    ChannelPtr<booster_interface::msg::LowCmd> channel_ptr_;
 };
 
 class B1OdometerStateSubscriber {
@@ -95,9 +95,9 @@ public:
     }
 
     void InitChannel() {
-        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<booster::msg::Odometer>(channel_name_, [this](const void *msg) {
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<booster_interface::msg::Odometer>(channel_name_, [this](const void *msg) {
             py::gil_scoped_acquire acquire;
-            const booster::msg::Odometer *low_state_msg = static_cast<const booster::msg::Odometer *>(msg);
+            const booster_interface::msg::Odometer *low_state_msg = static_cast<const booster_interface::msg::Odometer *>(msg);
             py_handler_(low_state_msg);
         });
     }
@@ -114,7 +114,7 @@ public:
     }
 
 private:
-    ChannelPtr<booster::msg::Odometer> channel_ptr_;
+    ChannelPtr<booster_interface::msg::Odometer> channel_ptr_;
     py::function py_handler_;
     const std::string channel_name_ = kTopicOdometerState;
 };
@@ -197,109 +197,109 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("RotateHead", &robot::b1::B1LocoClient::RotateHead, py::arg("pitch"), py::arg("yaw"))
         .def("WaveHand", &robot::b1::B1LocoClient::WaveHand);
 
-    py::class_<booster::msg::ImuState>(m, "ImuState")
+    py::class_<booster_interface::msg::ImuState>(m, "ImuState")
         .def(py::init<>())
-        .def(py::init<const booster::msg::ImuState &>())
+        .def(py::init<const booster_interface::msg::ImuState &>())
         .def_property("rpy",
-                      (const std::array<float, 3> &(booster::msg::ImuState::*)() const) & booster::msg::ImuState::rpy,
-                      (void(booster::msg::ImuState::*)(const std::array<float, 3> &)) & booster::msg::ImuState::rpy)
+                      (const std::array<float, 3> &(booster_interface::msg::ImuState::*)() const) & booster_interface::msg::ImuState::rpy,
+                      (void(booster_interface::msg::ImuState::*)(const std::array<float, 3> &)) & booster_interface::msg::ImuState::rpy)
         .def_property("gyro",
-                      (const std::array<float, 3> &(booster::msg::ImuState::*)() const) & booster::msg::ImuState::gyro,
-                      (void(booster::msg::ImuState::*)(const std::array<float, 3> &)) & booster::msg::ImuState::gyro)
+                      (const std::array<float, 3> &(booster_interface::msg::ImuState::*)() const) & booster_interface::msg::ImuState::gyro,
+                      (void(booster_interface::msg::ImuState::*)(const std::array<float, 3> &)) & booster_interface::msg::ImuState::gyro)
         .def_property("acc",
-                      (const std::array<float, 3> &(booster::msg::ImuState::*)() const) & booster::msg::ImuState::acc,
-                      (void(booster::msg::ImuState::*)(const std::array<float, 3> &)) & booster::msg::ImuState::acc)
-        .def("__eq__", &booster::msg::ImuState::operator==)
-        .def("__ne__", &booster::msg::ImuState::operator!=);
+                      (const std::array<float, 3> &(booster_interface::msg::ImuState::*)() const) & booster_interface::msg::ImuState::acc,
+                      (void(booster_interface::msg::ImuState::*)(const std::array<float, 3> &)) & booster_interface::msg::ImuState::acc)
+        .def("__eq__", &booster_interface::msg::ImuState::operator==)
+        .def("__ne__", &booster_interface::msg::ImuState::operator!=);
 
-    py::class_<booster::msg::MotorState>(m, "MotorState")
+    py::class_<booster_interface::msg::MotorState>(m, "MotorState")
         .def(py::init<>())
-        .def(py::init<const booster::msg::MotorState &>())
+        .def(py::init<const booster_interface::msg::MotorState &>())
         .def_property("mode",
-                      (uint8_t(booster::msg::MotorState::*)() const) & booster::msg::MotorState::mode,
-                      (uint8_t & (booster::msg::MotorState::*)()) & booster::msg::MotorState::mode)
+                      (uint8_t(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::mode,
+                      (uint8_t & (booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::mode)
         .def_property("q",
-                      (float(booster::msg::MotorState::*)() const) & booster::msg::MotorState::q,
-                      (float &(booster::msg::MotorState::*)()) & booster::msg::MotorState::q)
+                      (float(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::q,
+                      (float &(booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::q)
         .def_property("dq",
-                      (float(booster::msg::MotorState::*)() const) & booster::msg::MotorState::dq,
-                      (float &(booster::msg::MotorState::*)()) & booster::msg::MotorState::dq)
+                      (float(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::dq,
+                      (float &(booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::dq)
         .def_property("ddq",
-                      (float(booster::msg::MotorState::*)() const) & booster::msg::MotorState::ddq,
-                      (float &(booster::msg::MotorState::*)()) & booster::msg::MotorState::ddq)
+                      (float(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::ddq,
+                      (float &(booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::ddq)
         .def_property("tau_est",
-                      (float(booster::msg::MotorState::*)() const) & booster::msg::MotorState::tau_est,
-                      (float &(booster::msg::MotorState::*)()) & booster::msg::MotorState::tau_est)
+                      (float(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::tau_est,
+                      (float &(booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::tau_est)
         .def_property("temperature",
-                      (uint8_t(booster::msg::MotorState::*)() const) & booster::msg::MotorState::temperature,
-                      (uint8_t & (booster::msg::MotorState::*)()) & booster::msg::MotorState::temperature)
+                      (uint8_t(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::temperature,
+                      (uint8_t & (booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::temperature)
         .def_property("lost",
-                      (uint32_t(booster::msg::MotorState::*)() const) & booster::msg::MotorState::lost,
-                      (uint32_t & (booster::msg::MotorState::*)()) & booster::msg::MotorState::lost)
+                      (uint32_t(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::lost,
+                      (uint32_t & (booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::lost)
         .def_property("reserve",
-                      (const std::array<uint32_t, 2> &(booster::msg::MotorState::*)() const) & booster::msg::MotorState::reserve,
-                      (std::array<uint32_t, 2> & (booster::msg::MotorState::*)()) & booster::msg::MotorState::reserve)
-        .def("__eq__", &booster::msg::MotorState::operator==)
-        .def("__ne__", &booster::msg::MotorState::operator!=);
+                      (const std::array<uint32_t, 2> &(booster_interface::msg::MotorState::*)() const) & booster_interface::msg::MotorState::reserve,
+                      (std::array<uint32_t, 2> & (booster_interface::msg::MotorState::*)()) & booster_interface::msg::MotorState::reserve)
+        .def("__eq__", &booster_interface::msg::MotorState::operator==)
+        .def("__ne__", &booster_interface::msg::MotorState::operator!=);
 
-    py::class_<booster::msg::LowState>(m, "LowState")
+    py::class_<booster_interface::msg::LowState>(m, "LowState")
         .def(py::init<>())
-        .def(py::init<const booster::msg::LowState &>())
+        .def(py::init<const booster_interface::msg::LowState &>())
         .def_property("imu_state",
-                      (const booster::msg::ImuState &(booster::msg::LowState::*)() const) & booster::msg::LowState::imu_state,
-                      (void(booster::msg::LowState::*)(const booster::msg::ImuState &)) & booster::msg::LowState::imu_state)
+                      (const booster_interface::msg::ImuState &(booster_interface::msg::LowState::*)() const) & booster_interface::msg::LowState::imu_state,
+                      (void(booster_interface::msg::LowState::*)(const booster_interface::msg::ImuState &)) & booster_interface::msg::LowState::imu_state)
         .def_property("motor_state_parallel",
-                      (const std::vector<booster::msg::MotorState> &(booster::msg::LowState::*)() const) & booster::msg::LowState::motor_state_parallel,
-                      (void(booster::msg::LowState::*)(const std::vector<booster::msg::MotorState> &)) & booster::msg::LowState::motor_state_parallel)
+                      (const std::vector<booster_interface::msg::MotorState> &(booster_interface::msg::LowState::*)() const) & booster_interface::msg::LowState::motor_state_parallel,
+                      (void(booster_interface::msg::LowState::*)(const std::vector<booster_interface::msg::MotorState> &)) & booster_interface::msg::LowState::motor_state_parallel)
         .def_property("motor_state_serial",
-                      (const std::vector<booster::msg::MotorState> &(booster::msg::LowState::*)() const) & booster::msg::LowState::motor_state_serial,
-                      (void(booster::msg::LowState::*)(const std::vector<booster::msg::MotorState> &)) & booster::msg::LowState::motor_state_serial)
-        .def("__eq__", &booster::msg::LowState::operator==)
-        .def("__ne__", &booster::msg::LowState::operator!=);
+                      (const std::vector<booster_interface::msg::MotorState> &(booster_interface::msg::LowState::*)() const) & booster_interface::msg::LowState::motor_state_serial,
+                      (void(booster_interface::msg::LowState::*)(const std::vector<booster_interface::msg::MotorState> &)) & booster_interface::msg::LowState::motor_state_serial)
+        .def("__eq__", &booster_interface::msg::LowState::operator==)
+        .def("__ne__", &booster_interface::msg::LowState::operator!=);
 
-    py::class_<booster::msg::MotorCmd>(m, "MotorCmd")
+    py::class_<booster_interface::msg::MotorCmd>(m, "MotorCmd")
         .def(py::init<>())
-        .def(py::init<const booster::msg::MotorCmd &>())
+        .def(py::init<const booster_interface::msg::MotorCmd &>())
         .def_property("mode",
-                      (uint8_t(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::mode,
-                      (void(booster::msg::MotorCmd::*)(uint8_t)) & booster::msg::MotorCmd::mode)
+                      (uint8_t(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::mode,
+                      (void(booster_interface::msg::MotorCmd::*)(uint8_t)) & booster_interface::msg::MotorCmd::mode)
         .def_property("q",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::q,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::q)
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::q,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::q)
         .def_property("dq",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::dq,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::dq)
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::dq,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::dq)
         .def_property("tau",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::tau,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::tau)
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::tau,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::tau)
         .def_property("kp",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::kp,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::kp)
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::kp,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::kp)
         .def_property("kd",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::kd,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::kd)
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::kd,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::kd)
         .def_property("weight",
-                      (float(booster::msg::MotorCmd::*)() const) & booster::msg::MotorCmd::weight,
-                      (void(booster::msg::MotorCmd::*)(float)) & booster::msg::MotorCmd::weight)
-        .def("__eq__", &booster::msg::MotorCmd::operator==)
-        .def("__ne__", &booster::msg::MotorCmd::operator!=);
+                      (float(booster_interface::msg::MotorCmd::*)() const) & booster_interface::msg::MotorCmd::weight,
+                      (void(booster_interface::msg::MotorCmd::*)(float)) & booster_interface::msg::MotorCmd::weight)
+        .def("__eq__", &booster_interface::msg::MotorCmd::operator==)
+        .def("__ne__", &booster_interface::msg::MotorCmd::operator!=);
 
-    py::enum_<booster::msg::CmdType>(m, "LowCmdType")
-        .value("PARALLEL", booster::msg::CmdType::PARALLEL)
-        .value("SERIAL", booster::msg::CmdType::SERIAL)
+    py::enum_<booster_interface::msg::CmdType>(m, "LowCmdType")
+        .value("PARALLEL", booster_interface::msg::CmdType::PARALLEL)
+        .value("SERIAL", booster_interface::msg::CmdType::SERIAL)
         .export_values();
 
-    py::class_<booster::msg::LowCmd>(m, "LowCmd")
+    py::class_<booster_interface::msg::LowCmd>(m, "LowCmd")
         .def(py::init<>())
-        .def(py::init<const booster::msg::LowCmd &>())
+        .def(py::init<const booster_interface::msg::LowCmd &>())
         .def_property("cmd_type",
-                      (booster::msg::CmdType(booster::msg::LowCmd::*)() const) & booster::msg::LowCmd::cmd_type,
-                      (void(booster::msg::LowCmd::*)(booster::msg::CmdType)) & booster::msg::LowCmd::cmd_type)
+                      (booster_interface::msg::CmdType(booster_interface::msg::LowCmd::*)() const) & booster_interface::msg::LowCmd::cmd_type,
+                      (void(booster_interface::msg::LowCmd::*)(booster_interface::msg::CmdType)) & booster_interface::msg::LowCmd::cmd_type)
         .def_property("motor_cmd",
-                      (const std::vector<booster::msg::MotorCmd> &(booster::msg::LowCmd::*)() const) & booster::msg::LowCmd::motor_cmd,
-                      (void(booster::msg::LowCmd::*)(const std::vector<booster::msg::MotorCmd> &)) & booster::msg::LowCmd::motor_cmd)
-        .def("__eq__", &booster::msg::LowCmd::operator==)
-        .def("__ne__", &booster::msg::LowCmd::operator!=);
+                      (const std::vector<booster_interface::msg::MotorCmd> &(booster_interface::msg::LowCmd::*)() const) & booster_interface::msg::LowCmd::motor_cmd,
+                      (void(booster_interface::msg::LowCmd::*)(const std::vector<booster_interface::msg::MotorCmd> &)) & booster_interface::msg::LowCmd::motor_cmd)
+        .def("__eq__", &booster_interface::msg::LowCmd::operator==)
+        .def("__ne__", &booster_interface::msg::LowCmd::operator!=);
 
     py::class_<robot::b1::B1LowStateSubscriber>(m, "B1LowStateSubscriber")
         .def(py::init<const py::function &>())
@@ -314,17 +314,17 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("CloseChannel", &robot::b1::B1LowCmdPublisher::CloseChannel)
         .def("GetChannelName", &robot::b1::B1LowCmdPublisher::GetChannelName);
 
-    py::class_<booster::msg::Odometer>(m, "Odometer")
+    py::class_<booster_interface::msg::Odometer>(m, "Odometer")
         .def(py::init<>())
         .def_property("x",
-                      (float(booster::msg::Odometer::*)() const) & booster::msg::Odometer::x,
-                      (void(booster::msg::Odometer::*)(float)) & booster::msg::Odometer::x)
+                      (float(booster_interface::msg::Odometer::*)() const) & booster_interface::msg::Odometer::x,
+                      (void(booster_interface::msg::Odometer::*)(float)) & booster_interface::msg::Odometer::x)
         .def_property("y",
-                      (float(booster::msg::Odometer::*)() const) & booster::msg::Odometer::y,
-                      (void(booster::msg::Odometer::*)(float)) & booster::msg::Odometer::y)
+                      (float(booster_interface::msg::Odometer::*)() const) & booster_interface::msg::Odometer::y,
+                      (void(booster_interface::msg::Odometer::*)(float)) & booster_interface::msg::Odometer::y)
         .def_property("theta",
-                        (float(booster::msg::Odometer::*)() const) & booster::msg::Odometer::theta,
-                        (void(booster::msg::Odometer::*)(float)) & booster::msg::Odometer::theta);
+                        (float(booster_interface::msg::Odometer::*)() const) & booster_interface::msg::Odometer::theta,
+                        (void(booster_interface::msg::Odometer::*)(float)) & booster_interface::msg::Odometer::theta);
     
     py::class_<robot::b1::B1OdometerStateSubscriber>(m, "B1OdometerStateSubscriber")
         .def(py::init<const py::function &>())

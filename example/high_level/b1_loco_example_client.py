@@ -25,8 +25,12 @@ def main():
                 res = client.ChangeMode(RobotMode.kWalking)
             elif input_cmd == 'mc':
                 res = client.ChangeMode(RobotMode.kCustom)
+            elif input_cmd == "stop":
+                x, y, z = 0.0, 0.0, 0.0
+                need_print = True
+                res = client.Move(x, y, z)
             elif input_cmd == "w":
-                x, y, z = 0.2, 0.0, 0.0
+                x, y, z = 0.8, 0.0, 0.0
                 need_print = True
                 res = client.Move(x, y, z)
             elif input_cmd == "a":

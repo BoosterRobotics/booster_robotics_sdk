@@ -21,12 +21,12 @@ int main(int argc, char const *argv[]) {
 
   booster::robot::ChannelFactory::Instance()->Init(0, argv[1]);
 
-  booster::robot::ChannelPublisherPtr< booster::msg::LowCmd>
+  booster::robot::ChannelPublisherPtr< booster_interface::msg::LowCmd>
       arm_sdk_publisher;
-  booster::msg::LowCmd msg;
+  booster_interface::msg::LowCmd msg;
 
   arm_sdk_publisher.reset(
-      new booster::robot::ChannelPublisher<booster::msg::LowCmd>(
+      new booster::robot::ChannelPublisher<booster_interface::msg::LowCmd>(
           kTopicArmSDK));
   arm_sdk_publisher->InitChannel();
 
@@ -67,7 +67,7 @@ int main(int argc, char const *argv[]) {
   int init_time_steps = static_cast<int>(init_time / control_dt);
 
   for (size_t i = 0; i < booster::robot::b1::kJointCnt; i++) {
-    booster::msg::MotorCmd motor_cmd;
+    booster_interface::msg::MotorCmd motor_cmd;
     msg.motor_cmd().push_back(motor_cmd);
   }
 

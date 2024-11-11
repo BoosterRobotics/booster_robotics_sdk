@@ -6,6 +6,8 @@
 
 #include <booster/robot/channel/channel_publisher.hpp>
 #include <booster/robot/channel/channel_subscriber.hpp>
+#include <booster/idl/rpc/RpcReqMsg.h>
+#include <booster/idl/rpc/RpcRespMsg.h>
 
 namespace booster {
 namespace robot {
@@ -25,8 +27,8 @@ private:
     void DdsReqMsgHandler(const void *msg);
     int32_t SendResponse(const std::string &uuid, const Response &resp);
 
-    std::shared_ptr<ChannelPublisher<BsRpcRespMsg>> channel_publisher_;
-    std::shared_ptr<ChannelSubscriber<BsRpcReqMsg>> channel_subscriber_;
+    std::shared_ptr<ChannelPublisher<booster_msgs::msg::RpcRespMsg>> channel_publisher_;
+    std::shared_ptr<ChannelSubscriber<booster_msgs::msg::RpcReqMsg>> channel_subscriber_;
 };
 
 }

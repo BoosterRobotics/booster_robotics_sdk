@@ -21,13 +21,13 @@ int main(int argc, char const *argv[]) {
 
   booster::robot::ChannelFactory::Instance()->Init(0, argv[1]);
 
-  booster::robot::ChannelPublisherPtr< booster::msg::LowCmd>
+  booster::robot::ChannelPublisherPtr< booster_interface::msg::LowCmd>
       low_sdk_publisher;
-  booster::msg::LowCmd msg;
+  booster_interface::msg::LowCmd msg;
 
 
   low_sdk_publisher.reset(
-      new booster::robot::ChannelPublisher<booster::msg::LowCmd>(
+      new booster::robot::ChannelPublisher<booster_interface::msg::LowCmd>(
           kTopicLowSDK));
   low_sdk_publisher->InitChannel();
 
@@ -62,8 +62,8 @@ int main(int argc, char const *argv[]) {
   auto sleep_time =
       std::chrono::milliseconds(static_cast<int>(control_dt / 0.001f));
 
-  msg.cmd_type(booster::msg::CmdType::SERIAL);
-  // msg.cmd_type(booster::msg::CmdType::PARALLEL);
+  msg.cmd_type(booster_interface::msg::CmdType::SERIAL);
+  // msg.cmd_type(booster_interface::msg::CmdType::PARALLEL);
 
   std::array<float, 23> init_pos{};
 
@@ -103,7 +103,7 @@ int main(int argc, char const *argv[]) {
 
 
   for (size_t i = 0; i < booster::robot::b1::kJointCnt; i++) {
-    booster::msg::MotorCmd motor_cmd;
+    booster_interface::msg::MotorCmd motor_cmd;
     msg.motor_cmd().push_back(motor_cmd);
   }
 

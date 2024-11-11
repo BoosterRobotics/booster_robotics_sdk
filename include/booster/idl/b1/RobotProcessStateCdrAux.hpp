@@ -38,7 +38,7 @@ class CdrSizeCalculator;
 
 eProsima_user_DllExport void serialize_key(
         eprosima::fastcdr::Cdr& scdr,
-        const booster::msg::RobotProcessState& data);
+        const booster_interface::msg::RobotProcessState& data);
 
 
 

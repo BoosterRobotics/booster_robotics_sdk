@@ -8,7 +8,7 @@
 
 using namespace booster::robot;
 using namespace booster::common;
-using namespace booster::msg;
+using namespace booster_interface::msg;
 
 /*************  ✨ Codeium Command ⭐  *************/
 /**
