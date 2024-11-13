@@ -8,17 +8,8 @@
 
 using namespace booster::robot;
 using namespace booster::common;
-using namespace booster_interface::msg;
+using namespace booster::msg;
 
-/*************  ✨ Codeium Command ⭐  *************/
-/**
- * @brief Callback function for odometer state subscriber.
- *        This function will be called when a new odometer state message is received.
- *        The message will be printed to console.
- *
- * @param[in] msg The address of the received Odometer message.
- */
-/******  c9762cd1-8fe5-4927-b76a-d530bab85865  *******/
 void Handler(const void *msg) {
     const Odometer *odom_state_msg = static_cast<const Odometer *>(msg);
     std::cout << "Received message: " << std::endl

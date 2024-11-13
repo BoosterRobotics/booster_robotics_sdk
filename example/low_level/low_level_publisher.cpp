@@ -11,7 +11,7 @@
 #define SLEEP_TIME 1
 
 using namespace booster::robot;
-using namespace booster_interface::msg;
+using namespace booster::msg;
 
 int main() {
     ChannelFactory::Instance()->Init(0);
