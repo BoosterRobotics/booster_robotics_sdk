@@ -5,6 +5,7 @@
 #include <booster/third_party/nlohmann_json/json.hpp>
 #include <booster/robot/b1/b1_api_const.hpp>
 #include <booster/robot/common/robot_mode.hpp>
+#include <booster/robot/common/entities.hpp>
 
 namespace booster {
 namespace robot {
@@ -25,6 +26,8 @@ enum class LocoApiId {
     kRotateHeadWithDirection = 2006,
     kLieDown = 2007,
     kGetUp = 2008,
+    kMoveHandEndEffector = 2009,
+    kControlGripper = 2010
 };
 
 class RotateHeadParameter {
@@ -134,14 +137,14 @@ public:
 class WaveHandParameter {
 public:
     WaveHandParameter() = default;
-    WaveHandParameter(booster::robot::b1::HandIndex hand_index, booster::robot::b1::HandAction hand_action) :
+    WaveHandParameter(HandIndex hand_index, HandAction hand_action) :
         hand_action_(hand_action), hand_index_(hand_index) {
     }
 
 public:
     void FromJson(nlohmann::json &json) {
-        hand_index_ = static_cast<booster::robot::b1::HandIndex>(json["hand_index"]);
-        hand_action_ = static_cast<booster::robot::b1::HandAction>(json["hand_action"]);
+        hand_index_ = static_cast<HandIndex>(json["hand_index"]);
+        hand_action_ = static_cast<HandAction>(json["hand_action"]);
     }
 
     nlohmann::json ToJson() const {
@@ -152,9 +155,149 @@ public:
     }
 
 public:
-    booster::robot::b1::HandIndex hand_index_;
-    booster::robot::b1::HandAction hand_action_;
+    HandIndex hand_index_;
+    HandAction hand_action_;
 };
+
+class MoveHandEndEffectorParameter {
+public:
+    MoveHandEndEffectorParameter() = default;
+    MoveHandEndEffectorParameter(
+        const Posture &target_posture,
+        int time_millis,
+        HandIndex hand_index) :
+        target_posture_(target_posture),
+        time_millis_(time_millis),
+        hand_index_(hand_index) {
+        has_aux_ = false;
+    }
+    MoveHandEndEffectorParameter(
+        const Posture &target_posture,
+        const Posture &aux_posture,
+        int time_millis,
+        HandIndex hand_index) :
+        target_posture_(target_posture),
+        aux_posture_(aux_posture),
+        time_millis_(time_millis),
+        hand_index_(hand_index) {
+        has_aux_ = true;
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        target_posture_.FromJson(json["target_posture"]);
+        has_aux_ = json["has_aux"];
+        if (has_aux_) {
+            aux_posture_.FromJson(json["aux_posture"]);
+        }
+        time_millis_ = json["time_millis"];
+        hand_index_ = static_cast<HandIndex>(json["hand_index"]);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["target_posture"] = target_posture_.ToJson();
+        if (has_aux_) {
+            json["aux_posture"] = aux_posture_.ToJson();
+        }
+        json["time_millis"] = time_millis_;
+        json["hand_index"] = static_cast<int>(hand_index_);
+        json["has_aux"] = has_aux_;
+        return json;
+    }
+
+public:
+    Posture target_posture_;
+    Posture aux_posture_;
+    int time_millis_ = 1000;
+    HandIndex hand_index_;
+    bool has_aux_ = false;
+};
+
+enum class GripperControlMode {
+    // position mode, the gripper will stop when it reaches the target position,
+    // or when it experiences a specific reaction force, this reaction force
+    // specified in the motion parameter
+    kPosition = 0,
+    // torque mode, if the gripper not reaches the target position, the gripper will
+    // continue to move with the torque specified in the motion parameter
+    kTorque = 1
+};
+
+/**
+ *  This class definition represents a gripper motion parameter. Different grippers
+ *  have different motion parameters.
+ *
+ *  The following parameters all represent a scaling factor. When using them, you
+ *  need to convert them into the corresponding coefficients based on the specifications
+ *  of the gripper you are using.
+ *
+ *  For the Inspire EG2-4C2 Gripper:
+ *  - Maximum position: 77mm, Therefore, a position value of (0 ~ 1000) corresponds to (0 ~ 77 mm)
+ *  - Maximum force: 2kg, Therefore, a force value of (0 ~ 1000) corresponds to (0 ~ 2 kg)
+ *  - Speed unit: Not specified, The Inspire EG2-4C2 Gripper does not provide a unit, range, 
+ *    or dimension for speed. The speed can only be adjusted using values from 0 to 1000, which 
+ *    do not correspond to an absolute value
+ *
+ *  position: represents the gripper's opening value, ranging from 0 to 1000
+ *  force: represents the gripper's force control value, ranging from 50 to 1000
+ *  speed represents the gripper's opening and closing speed ranging from 1 to 1000
+ */
+class GripperMotionParameter {
+public:
+    GripperMotionParameter() = default;
+    GripperMotionParameter(const int32_t position, const int32_t force, const int32_t speed) :
+        position_(position), force_(force), speed_(speed) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        position_ = json["position"];
+        force_ = json["force"];
+        speed_ = json["speed"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["position"] = position_;
+        json["force"] = force_;
+        json["speed"] = speed_;
+        return json;
+    }
+
+public:
+    int32_t position_ = 0;
+    int32_t force_ = 0;
+    int32_t speed_ = 0;
+};
+
+class ControlGripperParameter {
+public:
+    ControlGripperParameter() = default;
+    ControlGripperParameter(const GripperMotionParameter &motion_param, GripperControlMode mode, HandIndex hand_index) :
+        motion_param_(motion_param), mode_(mode), hand_index_(hand_index) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        motion_param_.FromJson(json["motion_param"]);
+        mode_ = static_cast<GripperControlMode>(json["mode"]);
+        hand_index_ = static_cast<HandIndex>(json["hand_index"]);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["motion_param"] = motion_param_.ToJson();
+        json["mode"] = static_cast<int>(mode_);
+        json["hand_index"] = static_cast<int>(hand_index_);
+        return json;
+    }
+
+public:
+    GripperMotionParameter motion_param_;
+    GripperControlMode mode_;
+    HandIndex hand_index_;
+};
+
 }
 }
 } // namespace booster::robot::b1

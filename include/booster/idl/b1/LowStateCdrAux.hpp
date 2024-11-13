@@ -27,7 +27,7 @@
 constexpr uint32_t LowState_max_cdr_typesize {8060UL};
 constexpr uint32_t LowState_max_key_cdr_typesize {0UL};
 
-using namespace booster_interface::msg;
+using namespace booster::msg;
 
 namespace eprosima {
 namespace fastcdr {

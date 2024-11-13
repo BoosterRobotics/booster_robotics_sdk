@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <booster/robot/channel/channel_factory.hpp>
+#include <booster/robot/rpc/msg/bs_rpc_resp_msg.h>
 #include <booster/robot/rpc/response.hpp>
 
 namespace booster {

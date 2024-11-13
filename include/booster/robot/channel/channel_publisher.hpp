@@ -6,6 +6,7 @@
 
 #include <booster/robot/channel/channel_factory.hpp>
 #include <booster/robot/rpc/request.hpp>
+#include <booster/robot/rpc/msg/bs_rpc_req_msg.h>
 
 namespace booster {
 namespace robot {

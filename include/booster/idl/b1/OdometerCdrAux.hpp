@@ -38,7 +38,7 @@ class CdrSizeCalculator;
 
 eProsima_user_DllExport void serialize_key(
         eprosima::fastcdr::Cdr& scdr,
-        const booster_interface::msg::Odometer& data);
+        const booster::msg::Odometer& data);
 
 
 

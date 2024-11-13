@@ -11,8 +11,8 @@
 #include <booster/robot/channel/channel_subscriber.hpp>
 #include <booster/robot/rpc/response.hpp>
 #include <booster/robot/rpc/request.hpp>
-#include <booster/idl/rpc/RpcReqMsg.h>
-#include <booster/idl/rpc/RpcRespMsg.h>
+#include <booster/robot/rpc/msg/bs_rpc_req_msg.h>
+#include <booster/robot/rpc/msg/bs_rpc_resp_msg.h>
 
 namespace booster {
 namespace robot {
@@ -35,8 +35,8 @@ private:
     std::mutex mutex_;
     std::unordered_map<std::string, std::pair<Response, std::unique_ptr<std::condition_variable>>> resp_map_;
 
-    std::shared_ptr<ChannelPublisher<booster_msgs::msg::RpcReqMsg>> channel_publisher_;
-    std::shared_ptr<ChannelSubscriber<booster_msgs::msg::RpcRespMsg>> channel_subscriber_;
+    std::shared_ptr<ChannelPublisher<BsRpcReqMsg>> channel_publisher_;
+    std::shared_ptr<ChannelSubscriber<BsRpcRespMsg>> channel_subscriber_;
 };
 
 }
