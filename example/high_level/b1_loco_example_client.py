@@ -1,4 +1,4 @@
-from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode
+from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode, B1HandIndex, GripperControlMode, Position, Orientation, Posture, GripperMotionParameter  
 import sys
 
 def main():
@@ -73,6 +73,17 @@ def main():
                 yaw, pitch = 0.0, 0.0
                 need_print = True
                 res = client.RotateHead(pitch, yaw)
+            elif input_cmd == "mhel":
+                tar_posture = Posture()
+                tar_posture.position = Position(0.35, 0.25, 0.1)
+                tar_posture.orientation = Orientation(0.0, 0.0, 0.0)
+                res = client.MoveHandEndEffector(tar_posture, 2000, B1HandIndex.kLeftHand)
+            elif input_cmd == "gopenl":
+                motion_param = GripperMotionParameter()
+                motion_param.position = 500
+                motion_param.force = 100
+                motion_param.speed = 100
+                res = client.ControlGripper(motion_param, GripperControlMode.kPosition, B1HandIndex.kLeftHand)
 
             if need_print:
                 print(f"Param: {x} {y} {z}")
