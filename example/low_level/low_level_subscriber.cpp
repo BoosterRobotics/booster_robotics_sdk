@@ -9,7 +9,7 @@
 
 using namespace booster::robot;
 using namespace booster::common;
-using namespace booster::msg;
+using namespace booster_interface::msg;
 
 void Handler(const void *msg) {
     const LowState *low_state_msg = static_cast<const LowState *>(msg);
