@@ -109,64 +109,14 @@ int main(int argc, char const *argv[]) {
         res = client.LieDown();
       } else if (input == "gu") {
         res = client.GetUp();
-      } else if (input == "mhelr") {
-        booster::robot::Posture tar_posture;
-        tar_posture.position_ = booster::robot::Position(0.35  , 0.25, 0.1);
-        tar_posture.orientation_ = booster::robot::Orientation(0., 0., 0.);
-
-        res = client.MoveHandEndEffector(
-            tar_posture, 2000, booster::robot::b1::HandIndex::kLeftHand);
-
-        tar_posture.position_ = booster::robot::Position(0.4, -0.25, 0.1);
-        tar_posture.orientation_ = booster::robot::Orientation(0., 0., 0.);
-
-        res = client.MoveHandEndEffector(
-            tar_posture, 2000, booster::robot::b1::HandIndex::kRightHand);
       } else if (input == "mhel") {
         booster::robot::Posture tar_posture;
-        tar_posture.position_ = booster::robot::Position(0.35, 0.3, 0.3);
+        tar_posture.position_ = booster::robot::Position(0.35, 0.25, 0.1);
         tar_posture.orientation_ = booster::robot::Orientation(0., 0., 0.);
 
         res = client.MoveHandEndEffector(
             tar_posture, 2000, booster::robot::b1::HandIndex::kLeftHand);
-      } else if (input == "mher") {
-        booster::robot::Posture tar_posture;
-        tar_posture.position_ = booster::robot::Position(0.35, -0.3, 0.3);
-        tar_posture.orientation_ = booster::robot::Orientation(0., 0., 0.);
-
-        res = client.MoveHandEndEffector(
-            tar_posture, 2000, booster::robot::b1::HandIndex::kRightHand);
-      } else if (input == "mher1") {
-        booster::robot::Posture tar_posture;
-        tar_posture.position_ = booster::robot::Position(0.42, -0.3, 0.3);
-        tar_posture.orientation_ = booster::robot::Orientation(-1.57, 0., 0.);
-
-        res = client.MoveHandEndEffector(
-            tar_posture, 2000, booster::robot::b1::HandIndex::kRightHand);
-      } else if (input == "mher2") {
-        booster::robot::Posture tar_posture;
-        tar_posture.position_ = booster::robot::Position(0.25, -0.3, 0.25);
-        tar_posture.orientation_ = booster::robot::Orientation(0, 0., 0.);
-
-        res = client.MoveHandEndEffector(
-            tar_posture, 2000, booster::robot::b1::HandIndex::kRightHand);
-      } else if (input == "gclose") {
-        booster::robot::b1::GripperMotionParameter motion_param;
-        motion_param.position_ = 0;
-        motion_param.force_ = 100;
-        motion_param.speed_ = 100;
-
-        res = client.ControlGripper(
-            motion_param, booster::robot::b1::GripperControlMode::kPosition,
-            booster::robot::b1::HandIndex::kLeftHand);
-
-        motion_param.position_ = 0;
-        motion_param.force_ = 100;
-        motion_param.speed_ = 200;
-        res = client.ControlGripper(
-            motion_param, booster::robot::b1::GripperControlMode::kTorque,
-            booster::robot::b1::HandIndex::kRightHand);
-      } else if (input == "gopen") {
+      } else if (input == "gopenl") {
         booster::robot::b1::GripperMotionParameter motion_param;
         motion_param.position_ = 500;
         motion_param.force_ = 100;
@@ -175,13 +125,19 @@ int main(int argc, char const *argv[]) {
         res = client.ControlGripper(
             motion_param, booster::robot::b1::GripperControlMode::kPosition,
             booster::robot::b1::HandIndex::kLeftHand);
+      } else if (input == "gft") {
+        booster::robot::Frame src = booster::robot::Frame::kBody;
+        booster::robot::Frame dst = booster::robot::Frame::kRightHand;
+        booster::robot::Transform transform;
 
-        motion_param.position_ = 1000;
-        motion_param.force_ = 100;
-        motion_param.speed_ = 200;
-        res = client.ControlGripper(
-            motion_param, booster::robot::b1::GripperControlMode::kTorque,
-            booster::robot::b1::HandIndex::kRightHand);
+        res = client.GetFrameTransform(src, dst, transform);
+        if (res == 0) {
+          std::cout << "pos:" << transform.position_.x_ << " " << transform.position_.y_
+                    << " " << transform.position_.z_ << std::endl;
+          std::cout << "ori:" << transform.orientation_.x_ << " " << transform.orientation_.y_
+                    << " " << transform.orientation_.z_ << " "
+                    << transform.orientation_.w_ << std::endl;
+        }
       }
 
       if (need_print) {
