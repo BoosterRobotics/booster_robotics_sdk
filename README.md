@@ -23,7 +23,6 @@ mkdir build
 cd build
 cmake ..
 make
-sudo make install
 ```
 
 ## Build python binding api and install
@@ -32,7 +31,6 @@ mkdir build
 cd build
 cmake .. -DBUILD_PYTHON_BINDING=on
 make
-sudo make install
 ```
 
 ## License

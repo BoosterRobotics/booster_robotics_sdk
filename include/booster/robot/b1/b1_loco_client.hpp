@@ -19,6 +19,8 @@ public:
     ~B1LocoClient() = default;
 
     void Init();
+
+    void Init(const std::string &robot_name);
     /**
      * @brief Send API request to B1 robot
      *
@@ -28,6 +30,18 @@ public:
      * @return 0 if success, otherwise return error code
      */
     int32_t SendApiRequest(LocoApiId api_id, const std::string &param);
+
+    /**
+     * @brief Send API request to B1 robot with response
+     *
+     * @param api_id API_ID, you can find the API_ID in b1_api_const.hpp
+     * @param param API parameter
+     * @param resp [out] A reference to a Response object where the API's response will be stored.
+     * This parameter is modified by the function to contain the result of the API call
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t SendApiRequestWithResponse(LocoApiId api_id, const std::string &param, Response &resp);
 
     /**
      * @brief Change robot mode
@@ -160,6 +174,28 @@ public:
         ControlGripperParameter control_gripper(motion_param, mode, hand_index);
         std::string param = control_gripper.ToJson().dump();
         return SendApiRequest(LocoApiId::kControlGripper, param);
+    }
+
+    /**
+     * @brief Get frame transform
+     *
+     * @param src source frame
+     * @param dst destination frame
+     * @param transform [out] calculated transform
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t GetFrameTransform(Frame src, Frame dst, Transform &transform) {
+        GetFrameTransformParameter frame_transform(src, dst);
+        std::string param = frame_transform.ToJson().dump();
+        Response resp;
+        int32_t ret = SendApiRequestWithResponse(LocoApiId::kGetFrameTransform, param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        transform.FromJson(body_json);
+        return 0;
     }
 
 private:

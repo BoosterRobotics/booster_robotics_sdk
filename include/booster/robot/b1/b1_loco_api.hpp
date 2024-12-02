@@ -4,8 +4,8 @@
 #include <string>
 #include <booster/third_party/nlohmann_json/json.hpp>
 #include <booster/robot/b1/b1_api_const.hpp>
-#include <booster/robot/common/robot_mode.hpp>
 #include <booster/robot/common/entities.hpp>
+#include <booster/robot/common/robot_shared.hpp>
 
 namespace booster {
 namespace robot {
@@ -27,7 +27,8 @@ enum class LocoApiId {
     kLieDown = 2007,
     kGetUp = 2008,
     kMoveHandEndEffector = 2009,
-    kControlGripper = 2010
+    kControlGripper = 2010,
+    kGetFrameTransform = 2011
 };
 
 class RotateHeadParameter {
@@ -296,6 +297,32 @@ public:
     GripperMotionParameter motion_param_;
     GripperControlMode mode_;
     HandIndex hand_index_;
+};
+
+class GetFrameTransformParameter {
+public:
+    GetFrameTransformParameter() = default;
+    GetFrameTransformParameter(const Frame &src, const Frame &dst) :
+        src_(src), dst_(dst) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        src_ = static_cast<Frame>(json["src"]);
+        dst_ = static_cast<Frame>(json["dst"]);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["src"] = static_cast<int>(src_);
+        json["dst"] = static_cast<int>(dst_);
+        return json;
+    }
+
+public:
+    Frame src_;
+    Frame dst_;
+
 };
 
 }

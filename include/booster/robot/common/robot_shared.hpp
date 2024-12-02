@@ -1,5 +1,4 @@
-#ifndef __BOOSTER_ROBOTICS_SDK_ROBOT_STATE_HPP__
-#define __BOOSTER_ROBOTICS_SDK_ROBOT_STATE_HPP__
+#pragma once
 
 namespace booster {
 namespace robot {
@@ -13,7 +12,15 @@ enum class RobotMode {
     kCustom = 3,   // Custom mode, in custom mode, the robot can do some custom actions
 };
 
+enum class Frame {
+    kUnknown = -1, // For error handling
+    kBody = 0,     
+    kHead = 1,
+    kLeftHand = 2,
+    kRightHand = 3,
+    kLeftFoot = 4,
+    kRightFoot = 5,
+};
+
 }
 } // namespace booster::robot
-
-#endif

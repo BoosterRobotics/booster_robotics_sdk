@@ -95,6 +95,59 @@ public:
     Orientation orientation_;
 };
 
+class Quaternion {
+public:
+    Quaternion() = default;
+    Quaternion(float x, float y, float z, float w) :
+        x_(x), y_(y), z_(z), w_(w) {}
+    
+    void FromJson(nlohmann::json &json) {
+        x_ = json["x"];
+        y_ = json["y"];
+        z_ = json["z"];
+        w_ = json["w"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["x"] = x_;
+        json["y"] = y_;
+        json["z"] = z_;
+        json["w"] = w_;
+        return json;
+    }
+
+public:
+    float x_ = 0.;
+    float y_ = 0.;
+    float z_ = 0.;
+    float w_ = 0.;
+};
+
+class Transform {
+public:
+    Transform() = default;
+    Transform(const Position &position, const Quaternion &orientation) :
+        position_(position), orientation_(orientation) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        position_.FromJson(json["position"]);
+        orientation_.FromJson(json["orientation"]);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["position"] = position_.ToJson();
+        json["orientation"] = orientation_.ToJson();
+        return json;
+    }
+
+public:
+    Position position_;
+    Quaternion orientation_;
+
+};
 
 }
 } // namespace booster::robot
