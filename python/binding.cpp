@@ -16,7 +16,6 @@
 #include "booster/robot/common/robot_shared.hpp"
 #include "booster/robot/common/entities.hpp"
 #include "booster/robot/channel/channel_factory.hpp"
-#include "booster/robot/rpc/msg/bs_rpc_resp_msg.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -195,6 +194,16 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                "Torque mode: continues to move with specified torque if target position is not reached")
         .export_values(); // 将枚举值导出为 Python 模块中的常量
 
+    py::enum_<robot::Frame>(m, "Frame")
+        .value("kUnknown", robot::Frame::kUnknown)
+        .value("kBody", robot::Frame::kBody)
+        .value("kHead", robot::Frame::kHead)
+        .value("kLeftHand", robot::Frame::kLeftHand)
+        .value("kRightHand", robot::Frame::kRightHand)
+        .value("kLeftFoot", robot::Frame::kLeftFoot)
+        .value("kRightFoot", robot::Frame::kRightFoot)
+        .export_values();
+
     // Bind Position class
     py::class_<Position>(m, "Position")
         .def(py::init<>())
@@ -217,6 +226,22 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def(py::init<const Position &, const Orientation &>(), py::arg("position"), py::arg("orientation"))
         .def_readwrite("position", &Posture::position_)
         .def_readwrite("orientation", &Posture::orientation_);
+
+    // Bind Quaternion class
+    py::class_<Quaternion>(m, "Quaternion")
+        .def(py::init<>())
+        .def(py::init<float, float, float, float>(), py::arg("x"), py::arg("y"), py::arg("z"), py::arg("w"))
+        .def_readwrite("x", &Quaternion::x_)
+        .def_readwrite("y", &Quaternion::y_)
+        .def_readwrite("z", &Quaternion::z_)
+        .def_readwrite("w", &Quaternion::w_);
+
+    // Bind Transform class
+    py::class_<Transform>(m, "Transform")
+        .def(py::init<>())
+        .def(py::init<const Position &, const Quaternion &>(), py::arg("position"), py::arg("orientation"))
+        .def_readwrite("position", &Transform::position_)
+        .def_readwrite("orientation", &Transform::orientation_);
 
     py::class_<robot::b1::GripperMotionParameter>(m, "GripperMotionParameter")
         .def(py::init<>())                          // 默认构造函数
@@ -318,6 +343,18 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                  * @param motion_param motion parameter, include position, force, velocity, see `GripperMotionParameter`
                  * @param mode gripper control mode, options are: kPosition, kTorque, see `GripperControlMode`
                  * @param hand_index hand index, options are: kLeftHand, kRightHand
+                 *
+                 * @return 0 if success, otherwise return error code
+                 */
+                )pbdoc")
+        .def("GetFrameTransform", &robot::b1::B1LocoClient::GetFrameTransform, py::arg("src"), py::arg("dst"), py::arg("transform"),
+             R"pbdoc(
+                /**
+                 * @brief Get frame transform
+                 *
+                 * @param src source frame
+                 * @param dst destination frame
+                 * @param transform [out] calculated transform
                  *
                  * @return 0 if success, otherwise return error code
                  */

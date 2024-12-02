@@ -31,6 +31,7 @@ mkdir build
 cd build
 cmake .. -DBUILD_PYTHON_BINDING=on
 make
+sudo make install
 ```
 
 ## License

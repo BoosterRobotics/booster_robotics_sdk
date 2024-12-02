@@ -1,4 +1,4 @@
-from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode, B1HandIndex, GripperControlMode, Position, Orientation, Posture, GripperMotionParameter  
+from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode, B1HandIndex, GripperControlMode, Position, Orientation, Posture, GripperMotionParameter, Quaternion, Frame, Transform
 import sys
 
 def main():
@@ -84,6 +84,14 @@ def main():
                 motion_param.force = 100
                 motion_param.speed = 100
                 res = client.ControlGripper(motion_param, GripperControlMode.kPosition, B1HandIndex.kLeftHand)
+            elif input_cmd == "gft":
+                src = Frame.kBody
+                dst = Frame.kLeftHand
+
+                transform: Transform = Transform()
+                res = client.GetFrameTransform(src, dst, transform)
+                if res == 0:
+                    print(f"Transform: {transform}")
 
             if need_print:
                 print(f"Param: {x} {y} {z}")
