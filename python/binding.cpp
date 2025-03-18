@@ -16,6 +16,8 @@
 #include "booster/robot/common/robot_shared.hpp"
 #include "booster/robot/common/entities.hpp"
 #include "booster/robot/channel/channel_factory.hpp"
+#include "booster/idl/b1/HandReplyData.h"
+#include "booster/idl/b1/HandReplyParam.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -54,6 +56,37 @@ private:
     ChannelPtr<booster_interface::msg::LowState> channel_ptr_;
     py::function py_handler_;
     const std::string channel_name_ = kTopicLowState;
+};
+
+class B1LowHandDataScriber {
+public:
+    B1LowHandDataScriber(const py::function &py_handler) :
+        py_handler_(py_handler) {
+    }
+
+    void InitChannel() {
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<HandReplyData>(channel_name_, [this](const void *msg) {
+            py::gil_scoped_acquire acquire;
+            const HandReplyData *hand_data = static_cast<const HandReplyData *>(msg);
+            py_handler_(hand_data);
+        });
+    }
+
+    void CloseChannel() {
+        if (channel_ptr_) {
+            booster::robot::ChannelFactory::Instance()->CloseReader(channel_name_);
+            channel_ptr_.reset();
+        }
+    }
+
+    const std::string &GetChannelName() const {
+        return channel_name_;
+    }
+
+private:
+    ChannelPtr<booster_interface::msg::HandReplyData> channel_ptr_;
+    py::function py_handler_;
+    const std::string channel_name_ = "rt/booster_hand_data";
 };
 
 class B1LowCmdPublisher {
@@ -544,6 +577,21 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("CloseChannel", &robot::b1::B1LowStateSubscriber::CloseChannel, "Close low state subscription channel")
         .def("GetChannelName", &robot::b1::B1LowStateSubscriber::GetChannelName, "Get low state subscription channel name");
 
+
+    py::class_<robot::b1::B1LowHandDataScriber>(m, "B1LowHandDataScriber")
+        .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
+                 /**
+                 * @brief init hand data subscriber with callback handler
+                 *
+                 * @param handler callback handler of hand data, the handler should accept one parameter of type LowState
+                 *
+                 */
+            )pbdoc")
+        .def("InitChannel", &robot::b1::B1LowHandDataScriber::InitChannel, "Init low state subscription channel")
+        .def("CloseChannel", &robot::b1::B1LowHandDataScriber::CloseChannel, "Close low state subscription channel")
+        .def("GetChannelName", &robot::b1::B1LowHandDataScriber::GetChannelName, "Get low state subscription channel name");
+
+
     py::class_<robot::b1::B1LowCmdPublisher>(m, "B1LowCmdPublisher")
         .def(py::init<>())
         .def("InitChannel", &robot::b1::B1LowCmdPublisher::InitChannel, "Init low cmd publication channel")
@@ -582,6 +630,49 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("InitChannel", &robot::b1::B1OdometerStateSubscriber::InitChannel, "Init odometer subscription channel")
         .def("CloseChannel", &robot::b1::B1OdometerStateSubscriber::CloseChannel, "Close odometer subscription channel")
         .def("GetChannelName", &robot::b1::B1OdometerStateSubscriber::GetChannelName, "Get odometer subscription channel name");
+
+    py::class_<HandReplyParam>(m, "HandReplyParam")
+        .def(py::init<>())
+        .def(py::init<const HandReplyParam &>())
+       .def_property("angle",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::angle,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::angle)
+       .def_property("force",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::force,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::force)
+       .def_property("current",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::current,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::current)
+       .def_property("error",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::error,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::error)
+       .def_property("status",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::status,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::status)
+       .def_property("temp",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::temp,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::temp)
+       .def_property("seq",
+                      (int32_t(HandReplyParam::*)() const) & HandReplyParam::seq,
+                      (int32_t & (HandReplyParam::*)()) & HandReplyParam::seq)
+        .def("__eq__", &HandReplyParam::operator==)
+        .def("__ne__", &HandReplyParam::operator!=);
+
+
+    py::class_<HandReplyData>(m, "HandReplyData")
+        .def(py::init<>())
+        .def(py::init<const HandReplyData &>())
+        .def_property("hand_index",
+                      (int32_t(HandReplyData::*)() const) & HandReplyData::hand_index,
+                      (int32_t & (HandReplyData::*)()) & HandReplyData::hand_index)
+        .def_property("hand_type",
+                      (int32_t(HandReplyData::*)() const) & HandReplyData::hand_type,
+                      (int32_t & (HandReplyData::*)()) & HandReplyData::hand_type)
+        .def_property("hand_data",
+                      (const std::vector<HandReplyParam> &(HandReplyData::*)() const) & HandReplyData::hand_data,
+                      (void(HandReplyData::*)(const std::vector<HandReplyParam> &)) & HandReplyData::hand_data)
+        .def("__eq__", &HandReplyData::operator==)
+        .def("__ne__", &HandReplyData::operator!=);
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
