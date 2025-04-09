@@ -24,24 +24,39 @@
 
 namespace py = pybind11;
 namespace robot = booster::robot;
-using namespace booster_interface::msg;
+using booster_interface::msg::LowState;
+using booster_interface::msg::MotorState;
+using booster_interface::msg::LowCmd;
+using booster_interface::msg::MotorCmd;
+using booster_interface::msg::Odometer;
+using booster_interface::msg::ImuState;
+using booster_interface::msg::CmdType;
+using booster_interface::msg::HandReplyData;
+using booster_interface::msg::HandReplyParam;
 
 namespace booster::robot::b1 {
-class B1LowStateSubscriber {
+class __attribute__((visibility("hidden"))) B1LowStateSubscriber : public std::enable_shared_from_this<B1LowStateSubscriber> {
 public:
     B1LowStateSubscriber(const py::function &py_handler) :
         py_handler_(py_handler) {
     }
 
     void InitChannel() {
-        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<LowState>(channel_name_, [this](const void *msg) {
-            py::gil_scoped_acquire acquire;
-            const LowState *low_state_msg = static_cast<const LowState *>(msg);
-            py_handler_(low_state_msg);
+        py::gil_scoped_release release;
+        auto weak_this = std::weak_ptr<B1LowStateSubscriber>(shared_from_this());
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<LowState>(channel_name_, [weak_this](const void *msg) {
+            if (auto shared_this = weak_this.lock()) {
+                {
+                    py::gil_scoped_acquire acquire;
+                    const LowState *low_state_msg = static_cast<const LowState *>(msg);
+                    shared_this->py_handler_(low_state_msg);
+                }
+            }
         });
     }
 
     void CloseChannel() {
+        py::gil_scoped_release release;
         if (channel_ptr_) {
             booster::robot::ChannelFactory::Instance()->CloseReader(channel_name_);
             channel_ptr_.reset();
@@ -58,21 +73,28 @@ private:
     const std::string channel_name_ = kTopicLowState;
 };
 
-class B1LowHandDataScriber {
+class __attribute__((visibility("hidden"))) B1LowHandDataScriber : public std::enable_shared_from_this<B1LowHandDataScriber> {
 public:
     B1LowHandDataScriber(const py::function &py_handler) :
         py_handler_(py_handler) {
     }
 
     void InitChannel() {
-        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<HandReplyData>(channel_name_, [this](const void *msg) {
-            py::gil_scoped_acquire acquire;
-            const HandReplyData *hand_data = static_cast<const HandReplyData *>(msg);
-            py_handler_(hand_data);
+        py::gil_scoped_release release;
+        auto weak_this = std::weak_ptr<B1LowHandDataScriber>(shared_from_this());
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<HandReplyData>(channel_name_, [weak_this](const void *msg) {
+            if (auto shared_this = weak_this.lock()) {
+                {
+                    py::gil_scoped_acquire acquire;
+                    const HandReplyData *hand_data = static_cast<const HandReplyData *>(msg);
+                    shared_this->py_handler_(hand_data);
+                }
+            }
         });
     }
 
     void CloseChannel() {
+        py::gil_scoped_release release;
         if (channel_ptr_) {
             booster::robot::ChannelFactory::Instance()->CloseReader(channel_name_);
             channel_ptr_.reset();
@@ -89,13 +111,13 @@ private:
     const std::string channel_name_ = "rt/booster_hand_data";
 };
 
-class B1LowCmdPublisher {
+class __attribute__((visibility("hidden"))) B1LowCmdPublisher {
 public:
-    explicit B1LowCmdPublisher() {
-        channel_name_ = kTopicJointCtrl;
+    explicit B1LowCmdPublisher() : channel_name_(kTopicJointCtrl) {
     }
 
     void InitChannel() {
+        py::gil_scoped_release release;
         channel_ptr_ = ChannelFactory::Instance()->CreateSendChannel<LowCmd>(channel_name_);
     }
 
@@ -107,6 +129,7 @@ public:
     }
 
     void CloseChannel() {
+        py::gil_scoped_release release;
         if (channel_ptr_) {
             ChannelFactory::Instance()->CloseWriter(channel_name_);
             channel_ptr_.reset();
@@ -122,21 +145,28 @@ private:
     ChannelPtr<LowCmd> channel_ptr_;
 };
 
-class B1OdometerStateSubscriber {
+class __attribute__((visibility("hidden"))) B1OdometerStateSubscriber : public std::enable_shared_from_this<B1OdometerStateSubscriber> {
 public:
     B1OdometerStateSubscriber(const py::function &py_handler) :
         py_handler_(py_handler) {
     }
 
     void InitChannel() {
-        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<Odometer>(channel_name_, [this](const void *msg) {
-            py::gil_scoped_acquire acquire;
-            const Odometer *low_state_msg = static_cast<const Odometer *>(msg);
-            py_handler_(low_state_msg);
+        py::gil_scoped_release release;
+        auto weak_this = std::weak_ptr<B1OdometerStateSubscriber>(shared_from_this());
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<Odometer>(channel_name_, [weak_this](const void *msg) {
+            if (auto shared_this = weak_this.lock()) {
+                {
+                    py::gil_scoped_acquire acquire;
+                    const Odometer *low_state_msg = static_cast<const Odometer *>(msg);
+                    shared_this->py_handler_(low_state_msg);
+                }
+            }
         });
     }
 
     void CloseChannel() {
+        py::gil_scoped_release release;
         if (channel_ptr_) {
             booster::robot::ChannelFactory::Instance()->CloseReader(channel_name_);
             channel_ptr_.reset();
@@ -161,7 +191,12 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
     )pbdoc";
 
     py::class_<robot::ChannelFactory>(m, "ChannelFactory")
-        .def_static("Instance", &robot::ChannelFactory::Instance, py::return_value_policy::reference, "get the singleton instance of channel factory")
+        .def_static("Instance", &robot::ChannelFactory::Instance, py::return_value_policy::reference, 
+                    R"pbdoc(
+                        Get the singleton instance of the channel factory.
+
+                        Note: The returned instance is managed internally and should not be deleted or modified.
+                    )pbdoc")
         .def("Init", py::overload_cast<int32_t, const std::string &>(&robot::ChannelFactory::Init), py::arg("domain_id"), py::arg("network_interface") = "",
              R"pbdoc(
                 domain_id: domain id of DDS
@@ -225,7 +260,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                "Position mode: stops at target position or specified reaction force")
         .value("kForce", robot::b1::GripperControlMode::kForce,
                "Force mode: continues to move with specified force if target position is not reached")
-        .export_values(); // 将枚举值导出为 Python 模块中的常量
+        .export_values();
 
     py::enum_<robot::Frame>(m, "Frame")
         .value("kUnknown", robot::Frame::kUnknown)
@@ -277,11 +312,11 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def_readwrite("orientation", &Transform::orientation_);
 
     py::class_<robot::b1::GripperMotionParameter>(m, "GripperMotionParameter")
-        .def(py::init<>())                          // 默认构造函数
-        .def(py::init<int32_t, int32_t, int32_t>(), // 带参数的构造函数
-             py::arg("position"), py::arg("force"), py::arg("speed"))                     // 转换为 JSON
-        .def_readwrite("position", &robot::b1::GripperMotionParameter::position_)        // 暴露 position_ 字段
-        .def_readwrite("force", &robot::b1::GripperMotionParameter::force_)              // 暴露 force_ 字段
+        .def(py::init<>())                          // Default constructor
+        .def(py::init<int32_t, int32_t, int32_t>(), // constructor with parameters
+             py::arg("position"), py::arg("force"), py::arg("speed"))
+        .def_readwrite("position", &robot::b1::GripperMotionParameter::position_)
+        .def_readwrite("force", &robot::b1::GripperMotionParameter::force_)
         .def_readwrite("speed", &robot::b1::GripperMotionParameter::speed_);
 
     py::class_<robot::b1::DexterousFingerParameter>(m, "DexterousFingerParameter")
@@ -293,10 +328,25 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def_readwrite("force", &robot::b1::DexterousFingerParameter::force_)
         .def_readwrite("speed", &robot::b1::DexterousFingerParameter::speed_);
 
-    py::class_<robot::b1::B1LocoClient>(m, "B1LocoClient")
+    py::class_<robot::b1::B1LocoClient>(m, "B1LocoClient", R"pbdoc(
+        B1LocoClient is a client interface for controlling the B1 robot's locomotion and other high-level functionalities.
+        It provides methods to send API requests, change robot modes, move the robot, control its head and hands, and more.
+        .def("Init", py::overload_cast<const std::string &>(&robot::b1::B1LocoClient::Init), py::arg("robot_name"), R"pbdoc(
+                /**
+                 * @brief Initialize the B1LocoClient with a specific robot name.
+                 * 
+                 * @param robot_name The name of the robot to initialize the client for.
+                 */
+            )pbdoc")
         .def(py::init<>())
-        .def("Init", py::overload_cast<>(&robot::b1::B1LocoClient::Init), "Init")
-        .def("Init", py::overload_cast<const std::string &>(&robot::b1::B1LocoClient::Init), "Init with robot name")
+        .def("Init", [](robot::b1::B1LocoClient &client) {
+            py::gil_scoped_release release;
+            return client.Init();
+        }, "Init")
+        .def("Init", [](robot::b1::B1LocoClient &client, const std::string &robot_name) {
+            py::gil_scoped_release release;
+            return client.Init(robot_name);
+        }, "Init with robot name")
         .def("SendApiRequest", &robot::b1::B1LocoClient::SendApiRequest, py::arg("api_id"), py::arg("param"),
              R"pbdoc(
                 /**
@@ -564,7 +614,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("__eq__", &LowCmd::operator==)
         .def("__ne__", &LowCmd::operator!=);
 
-    py::class_<robot::b1::B1LowStateSubscriber>(m, "B1LowStateSubscriber")
+    py::class_<robot::b1::B1LowStateSubscriber, std::shared_ptr<robot::b1::B1LowStateSubscriber>>(m, "B1LowStateSubscriber")
         .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
                  /**
                  * @brief init low state subscriber with callback handler
@@ -578,7 +628,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("GetChannelName", &robot::b1::B1LowStateSubscriber::GetChannelName, "Get low state subscription channel name");
 
 
-    py::class_<robot::b1::B1LowHandDataScriber>(m, "B1LowHandDataScriber")
+    py::class_<robot::b1::B1LowHandDataScriber, std::shared_ptr<robot::b1::B1LowHandDataScriber>>(m, "B1LowHandDataScriber")
         .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
                  /**
                  * @brief init hand data subscriber with callback handler
@@ -618,7 +668,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                       (float(Odometer::*)() const) & Odometer::theta,
                       (void(Odometer::*)(float)) & Odometer::theta);
 
-    py::class_<robot::b1::B1OdometerStateSubscriber>(m, "B1OdometerStateSubscriber")
+    py::class_<robot::b1::B1OdometerStateSubscriber, std::shared_ptr<robot::b1::B1OdometerStateSubscriber>>(m, "B1OdometerStateSubscriber")
         .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
                  /**
                  * @brief init odometer state subscriber with callback handler

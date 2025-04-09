@@ -21,7 +21,7 @@ def main():
             low_cmd.motor_cmd[i].kp = 0.0
             low_cmd.motor_cmd[i].kd = 0.0
             low_cmd.motor_cmd[i].weight = 0.0
-            if i == B1JointIndex.kHeadPitch:
+            if i == B1JointIndex.kHeadPitch.value:
                 low_cmd.motor_cmd[i].q = 0.785
                 low_cmd.motor_cmd[i].dq = 0.0
                 low_cmd.motor_cmd[i].tau = 0.0
