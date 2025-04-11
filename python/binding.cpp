@@ -123,8 +123,11 @@ public:
 
     bool Write(LowCmd *msg) {
         if (channel_ptr_) {
-            return channel_ptr_->Write(msg);
+            LowCmd msg_copy(*msg);
+            py::gil_scoped_release release;
+            return channel_ptr_->Write(&msg_copy);
         }
+        py::gil_scoped_release release;
         return false;
     }
 
