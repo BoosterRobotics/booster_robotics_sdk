@@ -440,6 +440,24 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
              R"pbdoc(
                 /**
                  *  @brief Move hand end-effector with a target posture(position & orientation)
+                 *  @deprecated **This API is deprecated and will be removed in future versions.**
+                 *              Please use the new API `MoveHandEndEffectorEx` instead.
+                 *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. 
+                 *                        It contains position & orientation. 
+                 *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
+                 *  @param hand_index Identifies which hand the parameter refers to (for instance, left hand or right hand).
+                 *
+                 *  @return 0 if success, otherwise return error code
+                 * 
+                 *  @details
+                 *  **Reason for deprecation**: This API is deprecated due to an implicit rotational offset (rot) being applied to the target orientation. 
+                 *  The final orientation is calculated as orientation = rot * offset, which contradicts the parameter description of `target_posture`.
+                 */
+                )pbdoc")
+        .def("MoveHandEndEffectorEx", &robot::b1::B1LocoClient::MoveHandEndEffectorEx, py::arg("target_posture"), py::arg("time_millis"), py::arg("hand_index"),
+             R"pbdoc(
+                /**
+                 *  @brief Move hand end-effector with a target posture(position & orientation)
                  *
                  *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. It contains position & orientation. 
                  *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
