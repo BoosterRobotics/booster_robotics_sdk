@@ -333,13 +333,8 @@ def main():
             elif input_cmd == "mhel":
                 tar_posture = Posture()
                 tar_posture.position = Position(0.35, 0.25, 0.1)
-                tar_posture.orientation = Orientation(0.0, 0.0, 0.0)
-                res = client.MoveHandEndEffector(tar_posture, 2000, B1HandIndex.kLeftHand)
-            elif input_cmd == "mhel2":
-                tar_posture = Posture()
-                tar_posture.position = Position(0.35, 0.25, 0.1)
                 tar_posture.orientation = Orientation(-1.57, -1.57, 0.0)
-                res = client.MoveHandEndEffectorEx(tar_posture, 2000, B1HandIndex.kLeftHand)
+                res = client.MoveHandEndEffectorV2(tar_posture, 2000, B1HandIndex.kLeftHand)
             elif input_cmd == "gopenl":
                 motion_param = GripperMotionParameter()
                 motion_param.position = 500
