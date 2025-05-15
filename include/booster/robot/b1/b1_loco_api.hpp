@@ -208,6 +208,17 @@ public:
         hand_index_(hand_index) {
         has_aux_ = true;
     }
+    MoveHandEndEffectorParameter(
+        const Posture &target_posture,
+        int time_millis,
+        HandIndex hand_index,
+        bool new_version) :
+        target_posture_(target_posture),
+        time_millis_(time_millis),
+        hand_index_(hand_index),
+        new_version_(new_version) {
+        has_aux_ = false;
+    }
 
 public:
     void FromJson(nlohmann::json &json) {
@@ -218,6 +229,7 @@ public:
         }
         time_millis_ = json["time_millis"];
         hand_index_ = static_cast<HandIndex>(json["hand_index"]);
+        new_version_ = json["new_version"];
     }
 
     nlohmann::json ToJson() const {
@@ -229,6 +241,7 @@ public:
         json["time_millis"] = time_millis_;
         json["hand_index"] = static_cast<int>(hand_index_);
         json["has_aux"] = has_aux_;
+        json["new_version"] = new_version_;
         return json;
     }
 
@@ -238,6 +251,7 @@ public:
     int time_millis_ = 1000;
     HandIndex hand_index_;
     bool has_aux_ = false;
+    bool new_version_ = false;
 };
 
 enum class GripperControlMode {

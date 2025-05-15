@@ -146,17 +146,39 @@ public:
         return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
     }
 
-    /**
+   /**
      *  @brief Move hand end-effector with a target posture(position & orientation)
+     *  @deprecated **This API is deprecated and will be removed in future versions.**
+     *              Please use the new API `MoveHandEndEffectorV2` instead.
+     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach.
+     *                        It contains position & orientation,
+     *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
+     *  @param hand_index Identifies which hand the parameter refers to (for instance, left hand or right hand).
      *
-     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. It contains position & orientation.
+     *  @return 0 if success, otherwise return error code
+     * 
+     *  @details
+     *  **Reason for deprecation**: This API is deprecated due to an implicit rotational offset (rot) being applied to the target orientation. 
+     *  The final orientation is calculated as orientation = rot * offset, which contradicts the parameter description of `target_posture`.
+     */
+    int32_t MoveHandEndEffector(const Posture &target_posture, int time_millis, HandIndex hand_index) {
+        MoveHandEndEffectorParameter move_hand(target_posture, time_millis, hand_index, false);
+        std::string param = move_hand.ToJson().dump();
+        return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
+    }
+
+        /**
+     *  @brief Move hand end-effector with a target posture(position & orientation)
+     *  
+     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. 
+     *                        It contains position & orientation.
      *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
      *  @param hand_index Identifies which hand the parameter refers to (for instance, left hand or right hand).
      *
      *  @return 0 if success, otherwise return error code
      */
-    int32_t MoveHandEndEffector(const Posture &target_posture, int time_millis, HandIndex hand_index) {
-        MoveHandEndEffectorParameter move_hand(target_posture, time_millis, hand_index);
+    int32_t MoveHandEndEffectorV2(const Posture &target_posture, int time_millis, HandIndex hand_index) {
+        MoveHandEndEffectorParameter move_hand(target_posture, time_millis, hand_index, true);
         std::string param = move_hand.ToJson().dump();
         return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
     }
