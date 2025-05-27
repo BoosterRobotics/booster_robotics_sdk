@@ -9,7 +9,10 @@ namespace b1 {
 
 static const std::string kTopicJointCtrl = "rt/joint_ctrl";
 static const std::string kTopicLowState = "rt/low_state";
+static const std::string kTopicFallDown = "rt/fall_down";
 static const std::string kTopicOdometerState = "rt/odometer_state";
+static const std::string kTopicBoosterHandData = "rt/booster_hand_data";
+static const std::string kTopicTF = "rt/tf";
 
 // TODO(@wuyuanye): 按照结构图，把电机的索引完善
 enum class JointIndex {
@@ -34,7 +37,7 @@ enum class JointIndex {
 
     // left leg
     kLeftHipPitch = 11,
-    kLeftHipRoll = 12, 
+    kLeftHipRoll = 12,
     kLeftHipYaw = 13,
     kLeftKneePitch = 14,
     kCrankUpLeft = 15,
@@ -77,7 +80,7 @@ enum class JointIndexWith7DofArm {
 
     // left leg
     kLeftHipPitch = 17,
-    kLeftHipRoll = 18, 
+    kLeftHipRoll = 18,
     kLeftHipYaw = 19,
     kLeftKneePitch = 20,
     kCrankUpLeft = 21,
@@ -94,7 +97,6 @@ enum class JointIndexWith7DofArm {
 
 static const size_t kJointCnt = 23;
 static const size_t kJointCnt7DofArm = 29;
-
 
 enum HandIndex {
     kLeftHand = 0,

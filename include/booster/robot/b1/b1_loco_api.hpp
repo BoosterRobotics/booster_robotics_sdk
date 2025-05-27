@@ -31,7 +31,9 @@ enum class LocoApiId {
     kGetFrameTransform = 2011,
     kSwitchHandEndEffectorControlMode = 2012,
     kControlDexterousHand = 2013,
-    kHandshake = 2015
+    kHandshake = 2015,
+    kDance = 2016,
+    kGetMode = 2017,
 };
 
 class RotateHeadParameter {
@@ -66,6 +68,25 @@ public:
     ChangeModeParameter(booster::robot::RobotMode mode) :
         mode_(mode) {
     }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        mode_ = static_cast<booster::robot::RobotMode>(json["mode"]);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["mode"] = static_cast<int>(mode_);
+        return json;
+    }
+
+public:
+    booster::robot::RobotMode mode_;
+};
+
+class GetModeResponse {
+public:
+    GetModeResponse() = default;
 
 public:
     void FromJson(nlohmann::json &json) {
@@ -482,6 +503,38 @@ public:
     HandIndex hand_index_;
 };
 
+enum class DanceId {
+    kNewYear = 0,       // 拜年舞蹈
+    kNezha = 1,         // 哪吒舞
+    kTowardsFuture = 2, // 时代少年团《一起向未来》
+    kStop = 1000,
+};
+
+/**
+ * This class definition represents a dance parameter.
+ * dance_id: represents the dance ID, which can be found in the `DanceId` enum
+ */
+class DanceParameter {
+public:
+    DanceParameter() = default;
+    DanceParameter(DanceId dance_id) :
+        dance_id_(dance_id) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        dance_id_ = json["dance_id"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["dance_id"] = dance_id_;
+        return json;
+    }
+
+public:
+    DanceId dance_id_;
+};
 }
 }
 } // namespace booster::robot::b1

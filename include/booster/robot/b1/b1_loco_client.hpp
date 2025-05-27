@@ -56,6 +56,16 @@ public:
         return SendApiRequest(LocoApiId::kChangeMode, param);
     }
 
+    int32_t GetMode(GetModeResponse &get_mode_response) {
+        std::string param{};
+        Response resp;
+        int32_t ret = SendApiRequestWithResponse(LocoApiId::kGetMode,
+                                                 param, resp);
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        get_mode_response.FromJson(body_json);
+        return ret;
+    }
+
     /**
      * @brief Move robot
      *
@@ -132,7 +142,7 @@ public:
     /**
      *  @brief Move hand end-effector to a target posture(position & orientation) with an auxiliary point
      *
-     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. 
+     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach.
      *  It contains position & orientation.
      *  @param aux_posture Represents the auxiliary point on the end-effector's motion arc trajectory
      *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
@@ -146,7 +156,7 @@ public:
         return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
     }
 
-   /**
+    /**
      *  @brief Move hand end-effector with a target posture(position & orientation)
      *  @deprecated **This API is deprecated and will be removed in future versions.**
      *              Please use the new API `MoveHandEndEffectorV2` instead.
@@ -167,7 +177,7 @@ public:
         return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
     }
 
-        /**
+    /**
      *  @brief Move hand end-effector with a target posture(position & orientation)
      *  
      *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. 
@@ -222,9 +232,9 @@ public:
 
     /**
      * @brief Switch hand end-effector control mode
-     * 
+     *
      * @param switch_on true to switch on, false to switch off
-     * 
+     *
      * @return 0 if success, otherwise return error code
      */
     int32_t SwitchHandEndEffectorControlMode(bool switch_on) {
@@ -235,16 +245,15 @@ public:
 
     /**
      * @brief Handshake
-     * 
+     *
      * @param action whether to start handshake action, options are: kHandOpen, kHandClose
-     *  
+     *
      */
     int32_t Handshake(HandAction action) {
         HandshakeParameter handshake(action);
         std::string param = handshake.ToJson().dump();
         return SendApiRequest(LocoApiId::kHandshake, param);
     }
-
 
     /**
      * @brief Control dexterous hand
@@ -258,6 +267,20 @@ public:
         ControlDexterousHandParameter control_dexterous_hand(finger_params, hand_index);
         std::string param = control_dexterous_hand.ToJson().dump();
         return SendApiRequest(LocoApiId::kControlDexterousHand, param);
+    }
+
+    /**
+     * Note: an unstable interface
+     * @brief Make the robot perform a dance.
+     *
+     * @param dance_id The identifier of the dance to be performed
+     *
+     * @return int32_t Returns 0 if successful, otherwise returns an error code
+     */
+    int32_t Dance(DanceId dance_id) {
+        DanceParameter dance(dance_id);
+        std::string param = dance.ToJson().dump();
+        return SendApiRequest(LocoApiId::kDance, param);
     }
 
 private:
