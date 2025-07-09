@@ -90,11 +90,10 @@ namespace msg {
  * @ingroup FallDownState
  */
 enum FallDownStateType : uint32_t {
-  READY,
-  FALLEN,
-  GETTING_UP,
-  SUCCEEDED,
-  FAILED
+  IS_READY,
+  IS_FALLING,
+  HAS_FALLEN,
+  IS_GETTING_UP
 };
 
 /*!
@@ -165,9 +164,29 @@ class FallDownState : public eprosima::fastdds::dds::TopicDataType {
   eProsima_user_DllExport booster_interface::msg::FallDownStateType&
   fall_down_state();
 
+  /*!
+   * @brief This function sets a value in member is_recovery_available
+   * @param _is_recovery_available New value for member is_recovery_available
+   */
+  eProsima_user_DllExport void is_recovery_available(
+      bool _is_recovery_available);
+
+  /*!
+   * @brief This function returns the value of member is_recovery_available
+   * @return Value of member is_recovery_available
+   */
+  eProsima_user_DllExport bool is_recovery_available() const;
+
+  /*!
+   * @brief This function returns a reference to member is_recovery_available
+   * @return Reference to member is_recovery_available
+   */
+  eProsima_user_DllExport bool& is_recovery_available();
+
  private:
   booster_interface::msg::FallDownStateType m_fall_down_state{
-      booster_interface::msg::READY};
+      booster_interface::msg::IS_READY};
+  bool m_is_recovery_available{false};
 
  public:
   typedef FallDownState type;

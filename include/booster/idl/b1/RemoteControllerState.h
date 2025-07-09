@@ -603,22 +603,22 @@ class RemoteControllerState : public eprosima::fastdds::dds::TopicDataType {
   eProsima_user_DllExport bool& hat_rd();
 
   /*!
-   * @brief This function sets a value in member hat_pos
-   * @param _hat_pos New value for member hat_pos
+   * @brief This function sets a value in member reserved
+   * @param _reserved New value for member reserved
    */
-  eProsima_user_DllExport void hat_pos(uint8_t _hat_pos);
+  eProsima_user_DllExport void reserved(uint8_t _reserved);
 
   /*!
-   * @brief This function returns the value of member hat_pos
-   * @return Value of member hat_pos
+   * @brief This function returns the value of member reserved
+   * @return Value of member reserved
    */
-  eProsima_user_DllExport uint8_t hat_pos() const;
+  eProsima_user_DllExport uint8_t reserved() const;
 
   /*!
-   * @brief This function returns a reference to member hat_pos
-   * @return Reference to member hat_pos
+   * @brief This function returns a reference to member reserved
+   * @return Reference to member reserved
    */
-  eProsima_user_DllExport uint8_t& hat_pos();
+  eProsima_user_DllExport uint8_t& reserved();
 
  private:
   uint32_t m_event{0};
@@ -647,7 +647,7 @@ class RemoteControllerState : public eprosima::fastdds::dds::TopicDataType {
   bool m_hat_ld{false};
   bool m_hat_ru{false};
   bool m_hat_rd{false};
-  uint8_t m_hat_pos{0};
+  uint8_t m_reserved{0};
 
  public:
   typedef RemoteControllerState type;

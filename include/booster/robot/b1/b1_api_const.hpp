@@ -108,6 +108,15 @@ enum HandAction {
     kHandClose = 1,
 };
 
+enum RemoteControllerEvent {
+    NONE = 0, // no event
+    AXIS = 0x600, // axis motion
+    HAT = 0x602, // hat position change
+    BUTTON_DOWN = 0x603, // button pressed
+    BUTTON_UP = 0x604, // button released
+    REMOVE = 0x606 // device has been removed
+};
+
 }
 }
 } // namespace booster::robot::b1
