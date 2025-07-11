@@ -113,7 +113,8 @@ private:
 
 class __attribute__((visibility("hidden"))) B1LowCmdPublisher {
 public:
-    explicit B1LowCmdPublisher() : channel_name_(kTopicJointCtrl) {
+    explicit B1LowCmdPublisher() :
+        channel_name_(kTopicJointCtrl) {
     }
 
     void InitChannel() {
@@ -191,7 +192,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
     )pbdoc";
 
     py::class_<robot::ChannelFactory>(m, "ChannelFactory")
-        .def_static("Instance", &robot::ChannelFactory::Instance, py::return_value_policy::reference, 
+        .def_static("Instance", &robot::ChannelFactory::Instance, py::return_value_policy::reference,
                     R"pbdoc(
                         Get the singleton instance of the channel factory.
 
@@ -319,6 +320,10 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def_readwrite("force", &robot::b1::GripperMotionParameter::force_)
         .def_readwrite("speed", &robot::b1::GripperMotionParameter::speed_);
 
+    py::class_<robot::b1::GetModeResponse>(m, "GetModeResponse")
+        .def(py::init<>())
+        .def_readwrite("mode", &robot::b1::GetModeResponse::mode_);
+
     py::class_<robot::b1::DexterousFingerParameter>(m, "DexterousFingerParameter")
         .def(py::init<>())
         .def(py::init<int32_t, int32_t, int32_t, int32_t>(),
@@ -339,14 +344,18 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                  */
             )pbdoc")
         .def(py::init<>())
-        .def("Init", [](robot::b1::B1LocoClient &client) {
-            py::gil_scoped_release release;
-            return client.Init();
-        }, "Init")
-        .def("Init", [](robot::b1::B1LocoClient &client, const std::string &robot_name) {
-            py::gil_scoped_release release;
-            return client.Init(robot_name);
-        }, "Init with robot name")
+        .def(
+            "Init", [](robot::b1::B1LocoClient &client) {
+                py::gil_scoped_release release;
+                return client.Init();
+            },
+            "Init")
+        .def(
+            "Init", [](robot::b1::B1LocoClient &client, const std::string &robot_name) {
+                py::gil_scoped_release release;
+                return client.Init(robot_name);
+            },
+            "Init with robot name")
         .def("SendApiRequest", &robot::b1::B1LocoClient::SendApiRequest, py::arg("api_id"), py::arg("param"),
              R"pbdoc(
                 /**
@@ -368,6 +377,19 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                  * @return 0 if success, otherwise return error code
                  */
             )pbdoc")
+        .def("GetMode", &robot::b1::B1LocoClient::GetMode, py::arg("get_mode_response"),
+             R"pbdoc(
+                /**
+                 * @brief Get current robot mode
+                 *
+                 * @param[out] get_mode_response Reference to store the response data, including:
+                 *              - current_mode (RobotMode enum value)
+                 *
+                 * @return 0 if success, otherwise return error code
+                 * @see ChangeMode() for mode switching API
+                 * @see RobotMode enum for available mode definitions
+                 */
+               )pbdoc")
         .def("Move", &robot::b1::B1LocoClient::Move, py::arg("vx"), py::arg("vy"), py::arg("vyaw"),
              R"pbdoc(
                 /**
@@ -645,7 +667,6 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("CloseChannel", &robot::b1::B1LowStateSubscriber::CloseChannel, "Close low state subscription channel")
         .def("GetChannelName", &robot::b1::B1LowStateSubscriber::GetChannelName, "Get low state subscription channel name");
 
-
     py::class_<robot::b1::B1LowHandDataScriber, std::shared_ptr<robot::b1::B1LowHandDataScriber>>(m, "B1LowHandDataScriber")
         .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
                  /**
@@ -658,7 +679,6 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("InitChannel", &robot::b1::B1LowHandDataScriber::InitChannel, "Init low state subscription channel")
         .def("CloseChannel", &robot::b1::B1LowHandDataScriber::CloseChannel, "Close low state subscription channel")
         .def("GetChannelName", &robot::b1::B1LowHandDataScriber::GetChannelName, "Get low state subscription channel name");
-
 
     py::class_<robot::b1::B1LowCmdPublisher>(m, "B1LowCmdPublisher")
         .def(py::init<>())
@@ -702,30 +722,29 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
     py::class_<HandReplyParam>(m, "HandReplyParam")
         .def(py::init<>())
         .def(py::init<const HandReplyParam &>())
-       .def_property("angle",
+        .def_property("angle",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::angle,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::angle)
-       .def_property("force",
+        .def_property("force",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::force,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::force)
-       .def_property("current",
+        .def_property("current",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::current,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::current)
-       .def_property("error",
+        .def_property("error",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::error,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::error)
-       .def_property("status",
+        .def_property("status",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::status,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::status)
-       .def_property("temp",
+        .def_property("temp",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::temp,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::temp)
-       .def_property("seq",
+        .def_property("seq",
                       (int32_t(HandReplyParam::*)() const) & HandReplyParam::seq,
                       (int32_t & (HandReplyParam::*)()) & HandReplyParam::seq)
         .def("__eq__", &HandReplyParam::operator==)
         .def("__ne__", &HandReplyParam::operator!=);
-
 
     py::class_<HandReplyData>(m, "HandReplyData")
         .def(py::init<>())

@@ -1,4 +1,4 @@
-from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode, B1HandIndex, GripperControlMode, Position, Orientation, Posture, GripperMotionParameter, Quaternion, Frame, Transform, DexterousFingerParameter
+from booster_robotics_sdk_python import B1LocoClient, ChannelFactory, RobotMode, B1HandIndex, GripperControlMode, Position, Orientation, Posture, GripperMotionParameter, GetModeResponse, Quaternion, Frame, Transform, DexterousFingerParameter
 import sys, time, random
 
 def hand_rock(client: B1LocoClient):
@@ -353,6 +353,11 @@ def main():
                 res = client.GetFrameTransform(src, dst, transform)
                 if res == 0:
                     print(f"Transform: {transform}")
+            elif input_cmd == "gm":
+                gm: GetModeResponse = GetModeResponse()
+                res = client.GetMode(gm)
+                if res == 0:
+                    print(f"gm: {gm.mode}")
             elif input_cmd == "hcm-start":
                 res = client.SwitchHandEndEffectorControlMode(True)
             elif input_cmd == "hcm-stop":

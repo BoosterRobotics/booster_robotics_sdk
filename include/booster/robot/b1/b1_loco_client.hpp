@@ -56,11 +56,24 @@ public:
         return SendApiRequest(LocoApiId::kChangeMode, param);
     }
 
+    /**
+     * @brief Get current robot mode
+     *
+     * @param[out] get_mode_response Reference to store the response data, including:
+     *              - current_mode (RobotMode enum value)
+     *
+     * @return 0 if success, otherwise return error code
+     * @see ChangeMode() for mode switching API
+     * @see RobotMode enum for available mode definitions
+     */
     int32_t GetMode(GetModeResponse &get_mode_response) {
         std::string param{};
         Response resp;
         int32_t ret = SendApiRequestWithResponse(LocoApiId::kGetMode,
                                                  param, resp);
+        if (ret != 0) {
+            return ret;
+        }
         nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
         get_mode_response.FromJson(body_json);
         return ret;
@@ -166,9 +179,9 @@ public:
      *  @param hand_index Identifies which hand the parameter refers to (for instance, left hand or right hand).
      *
      *  @return 0 if success, otherwise return error code
-     * 
+     *
      *  @details
-     *  **Reason for deprecation**: This API is deprecated due to an implicit rotational offset (rot) being applied to the target orientation. 
+     *  **Reason for deprecation**: This API is deprecated due to an implicit rotational offset (rot) being applied to the target orientation.
      *  The final orientation is calculated as orientation = rot * offset, which contradicts the parameter description of `target_posture`.
      */
     int32_t MoveHandEndEffector(const Posture &target_posture, int time_millis, HandIndex hand_index) {
@@ -179,8 +192,8 @@ public:
 
     /**
      *  @brief Move hand end-effector with a target posture(position & orientation)
-     *  
-     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach. 
+     *
+     *  @param target_posture Represents the target posture in base frame (torso frame) that the hand end-effector should reach.
      *                        It contains position & orientation.
      *  @param time_mills Specifies the duration, in milliseconds, for completing the movement.
      *  @param hand_index Identifies which hand the parameter refers to (for instance, left hand or right hand).
