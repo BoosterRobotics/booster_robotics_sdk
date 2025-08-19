@@ -16,12 +16,12 @@ set -e
 
 apt update
 
-apt install git
-apt install build-essential
-apt install cmake
-apt install libssl-dev
-apt install libasio-dev
-apt install libtinyxml2-dev
+apt install -y git
+apt install -y build-essential
+apt install -y cmake
+apt install -y libssl-dev
+apt install -y libasio-dev
+apt install -y libtinyxml2-dev
 
 ubuntu_version=$(lsb_release -rs)
 ubuntu_version_flag=20
