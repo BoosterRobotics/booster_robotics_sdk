@@ -504,9 +504,14 @@ public:
 };
 
 enum class DanceId {
-    kNewYear = 0,       // 拜年舞蹈
-    kNezha = 1,         // 哪吒舞
-    kTowardsFuture = 2, // 时代少年团《一起向未来》
+    kNewYear = 0,
+    kNezha = 1,
+    kTowardsFuture = 2,
+    kPogbaGuesture = 3,
+    kUltramanGuesture = 4,
+    kChineseGreetingGuesture = 5,
+    kCheeringGuesture = 6,
+    kManekiGuesture = 7,
     kStop = 1000,
 };
 
@@ -535,6 +540,9 @@ public:
 public:
     DanceId dance_id_;
 };
+
+
+
 }
 }
 } // namespace booster::robot::b1
