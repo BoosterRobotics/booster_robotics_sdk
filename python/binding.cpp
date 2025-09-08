@@ -18,6 +18,8 @@
 #include "booster/robot/channel/channel_factory.hpp"
 #include "booster/idl/b1/HandReplyData.h"
 #include "booster/idl/b1/HandReplyParam.h"
+#include "booster/idl/b1/HandTouchData.h"
+#include "booster/idl/b1/HandTouchParam.h"
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -33,6 +35,9 @@ using booster_interface::msg::ImuState;
 using booster_interface::msg::CmdType;
 using booster_interface::msg::HandReplyData;
 using booster_interface::msg::HandReplyParam;
+
+using booster_interface::msg::HandTouchData;
+using booster_interface::msg::HandTouchParam;
 
 namespace booster::robot::b1 {
 class __attribute__((visibility("hidden"))) B1LowStateSubscriber : public std::enable_shared_from_this<B1LowStateSubscriber> {
@@ -72,6 +77,45 @@ private:
     py::function py_handler_;
     const std::string channel_name_ = kTopicLowState;
 };
+
+class __attribute__((visibility("hidden"))) B1LowHandTouchDataScriber : public std::enable_shared_from_this<B1LowHandTouchDataScriber> {
+public:
+    B1LowHandTouchDataScriber(const py::function &py_handler) :
+        py_handler_(py_handler) {
+    }
+
+    void InitChannel() {
+        py::gil_scoped_release release;
+        auto weak_this = std::weak_ptr<B1LowHandTouchDataScriber>(shared_from_this());
+        channel_ptr_ = booster::robot::ChannelFactory::Instance()->CreateRecvChannel<HandTouchData>(channel_name_, [weak_this](const void *msg) {
+            if (auto shared_this = weak_this.lock()) {
+                {
+                    py::gil_scoped_acquire acquire;
+                    const HandTouchData *hand_data = static_cast<const HandTouchData *>(msg);
+                    shared_this->py_handler_(hand_data);
+                }
+            }
+        });
+    }
+
+    void CloseChannel() {
+        py::gil_scoped_release release;
+        if (channel_ptr_) {
+            booster::robot::ChannelFactory::Instance()->CloseReader(channel_name_);
+            channel_ptr_.reset();
+        }
+    }
+
+    const std::string &GetChannelName() const {
+        return channel_name_;
+    }
+
+private:
+    ChannelPtr<booster_interface::msg::HandTouchData> channel_ptr_;
+    py::function py_handler_;
+    const std::string channel_name_ = "rt/booster_hand_touch_data";
+};
+
 
 class __attribute__((visibility("hidden"))) B1LowHandDataScriber : public std::enable_shared_from_this<B1LowHandDataScriber> {
 public:
@@ -667,6 +711,19 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("CloseChannel", &robot::b1::B1LowStateSubscriber::CloseChannel, "Close low state subscription channel")
         .def("GetChannelName", &robot::b1::B1LowStateSubscriber::GetChannelName, "Get low state subscription channel name");
 
+    py::class_<robot::b1::B1LowHandTouchDataScriber, std::shared_ptr<robot::b1::B1LowHandTouchDataScriber>>(m, "B1LowHandTouchDataScriber")
+        .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
+                 /**
+                 * @brief init hand touch data subscriber with callback handler
+                 *
+                 * @param handler callback handler of hand touch data, the handler should accept one parameter of type LowState
+                 *
+                 */
+            )pbdoc")
+        .def("InitChannel", &robot::b1::B1LowHandTouchDataScriber::InitChannel, "Init low state subscription channel")
+        .def("CloseChannel", &robot::b1::B1LowHandTouchDataScriber::CloseChannel, "Close low state subscription channel")
+        .def("GetChannelName", &robot::b1::B1LowHandTouchDataScriber::GetChannelName, "Get low state subscription channel name");
+
     py::class_<robot::b1::B1LowHandDataScriber, std::shared_ptr<robot::b1::B1LowHandDataScriber>>(m, "B1LowHandDataScriber")
         .def(py::init<const py::function &>(), py::arg("handler"), R"pbdoc(
                  /**
@@ -761,6 +818,46 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
         .def("__eq__", &HandReplyData::operator==)
         .def("__ne__", &HandReplyData::operator!=);
 
+    py::class_<HandTouchParam>(m, "HandTouchParam")
+        .def(py::init<>())
+        .def(py::init<const HandTouchParam &>())
+        .def_property("finger_one",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_one,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_one)
+        .def_property("finger_two",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_two,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_two)
+        .def_property("finger_three",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_three,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_three)
+        .def_property("finger_four",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_four,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_four)
+        .def_property("finger_five",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_five,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_five)
+        .def_property("finger_palm",
+                      (const std::vector<uint8_t> &(HandTouchParam::*)() const) & HandTouchParam::finger_palm,
+                      (void(HandTouchParam::*)(const std::vector<uint8_t> &)) & HandTouchParam::finger_palm)
+
+        .def("__eq__", &HandTouchParam::operator==)
+        .def("__ne__", &HandTouchParam::operator!=);
+
+    py::class_<HandTouchData>(m, "HandTouchData")
+        .def(py::init<>())
+        .def(py::init<const HandTouchData &>())
+        .def_property("hand_index",
+                      (int32_t(HandTouchData::*)() const) & HandTouchData::hand_index,
+                      (int32_t & (HandTouchData::*)()) & HandTouchData::hand_index)
+        .def_property("hand_type",
+                      (int32_t(HandTouchData::*)() const) & HandTouchData::hand_type,
+                      (int32_t & (HandTouchData::*)()) & HandTouchData::hand_type)
+
+        .def_property("touch_data",
+                      (const HandTouchParam &(HandTouchData::*)() const) & HandTouchData::touch_data,
+                      (void(HandTouchData::*)(const HandTouchParam &)) & HandTouchData::touch_data)
+        .def("__eq__", &HandTouchData::operator==)
+        .def("__ne__", &HandTouchData::operator!=);
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
 #else
