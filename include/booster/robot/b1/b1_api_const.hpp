@@ -12,6 +12,7 @@ static const std::string kTopicLowState = "rt/low_state";
 static const std::string kTopicFallDown = "rt/fall_down";
 static const std::string kTopicOdometerState = "rt/odometer_state";
 static const std::string kTopicBoosterHandData = "rt/booster_hand_data";
+static const std::string kTopicHandTouchData = "rt/booster_hand_touch_data";
 static const std::string kTopicTF = "rt/tf";
 
 // TODO(@wuyuanye): 按照结构图，把电机的索引完善
