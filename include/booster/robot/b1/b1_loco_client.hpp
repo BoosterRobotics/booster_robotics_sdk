@@ -4,7 +4,6 @@
 #include <memory>
 
 #include <booster/robot/rpc/rpc_client.hpp>
-
 #include "b1_loco_api.hpp"
 
 using namespace booster::robot;
@@ -80,6 +79,54 @@ public:
     }
 
     /**
+     * @brief Get current robot status
+     *
+     * @param[out] get_status_response Reference to store the response data, including:
+     *              - current_mode (RobotMode enum value)
+     *              - current_body_control (BodyControl enum value)
+     *              - current_actions (vector of Action enum values)
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t GetStatus(GetStatusResponse &get_status_response) {
+        std::string param{};
+        Response resp;
+        int32_t ret = SendApiRequestWithResponse(LocoApiId::kGetStatus,
+                                                 param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        get_status_response.FromJson(body_json);
+        return ret;
+    }
+
+    /**
+     * @brief Get robot info
+     *
+     * @param[out] get_robot_info_response Reference to store the response data, including:
+     *              - name (std::string)
+     *              - nickname (std::string)
+     *              - version (std::string)
+     *              - model (std::string)
+     *              - serial_number (std::string)
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t GetRobotInfo(GetRobotInfoResponse &get_robot_info_response) {
+        std::string param{};
+        Response resp;
+        int32_t ret = SendApiRequestWithResponse(LocoApiId::kGetRobotInfo,
+                                                 param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        get_robot_info_response.FromJson(body_json);
+        return ret;
+    }
+
+    /**
      * @brief Move robot
      *
      * @param vx linear velocity in x direction, unit: m/s
@@ -136,7 +183,7 @@ public:
 
     /**
      * @brief The robot lies down on its back
-     *
+     * @warning This API is unstable and may change in future releases.
      * @return 0 if success, otherwise return error code
      */
     int32_t LieDown() {
@@ -144,12 +191,32 @@ public:
     }
 
     /**
-     * @brief The robot gets up from a position lying on its back
+     * @brief The robot gets up
      *
      * @return 0 if success, otherwise return error code
      */
     int32_t GetUp() {
         return SendApiRequest(LocoApiId::kGetUp, "");
+    }
+
+    /**
+     * @brief The robot gets up to specified mode, either kWalking or kSoccer
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t GetUpWithMode(booster::robot::RobotMode mode) {
+        GetUpWithModeParameter param(mode);
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kGetUpWithMode, json);
+    }
+
+    /**
+     * @brief The robot executes a powerful kicking motion.
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t Shoot() {
+        return SendApiRequest(LocoApiId::kShoot, "");
     }
 
     /**
@@ -204,6 +271,15 @@ public:
         MoveHandEndEffectorParameter move_hand(target_posture, time_millis, hand_index, true);
         std::string param = move_hand.ToJson().dump();
         return SendApiRequest(LocoApiId::kMoveHandEndEffector, param);
+    }
+
+    /**
+     * @brief Stop hand end-effector movement
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t StopHandEndEffector() {
+        return SendApiRequest(LocoApiId::kStopHandEndEffector, "");
     }
 
     /**
@@ -294,6 +370,65 @@ public:
         DanceParameter dance(dance_id);
         std::string param = dance.ToJson().dump();
         return SendApiRequest(LocoApiId::kDance, param);
+    }
+
+    /**
+     * @brief Play sound in specific path
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t PlaySound(const std::string &sound_file_path) {
+        PlaySoundParameter play_sound(sound_file_path);
+        std::string param = play_sound.ToJson().dump();
+        return SendApiRequest(LocoApiId::kPlaySound, param);
+    }
+
+    /**
+     * @brief Stop sound
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t StopSound() {
+        return SendApiRequest(LocoApiId::kStopSound, "");
+    }
+
+    /**
+     * @brief Enable or disable zero torque drag, depending on active state
+     *
+     * @param active true to enable, false to disable
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t ZeroTorqueDrag(bool active) {
+        ZeroTorqueDragParameter zero_torque_drag(active);
+        std::string param = zero_torque_drag.ToJson().dump();
+        return SendApiRequest(LocoApiId::kZeroTorqueDrag, param);
+    }
+
+    /**
+     * @brief Start or stop recording trajectory, depending on active state
+     *
+     * @param active true to start recording, false to stop
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t RecordTrajectory(bool active) {
+        RecordTrajectoryParameter record_trajectory(active);
+        std::string param = record_trajectory.ToJson().dump();
+        return SendApiRequest(LocoApiId::kRecordTrajectory, param);
+    }
+
+    /**
+     * @brief Replay trajectory
+     *
+     * @param active true to start replaying, false to stop
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t ReplayTrajectory(std::string path) {
+        ReplayTrajectoryParameter replay_trajectory(path);
+        std::string param = replay_trajectory.ToJson().dump();
+        return SendApiRequest(LocoApiId::kReplayTrajectory, param);
     }
 
 private:

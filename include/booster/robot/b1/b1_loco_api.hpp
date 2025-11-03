@@ -34,6 +34,17 @@ enum class LocoApiId {
     kHandshake = 2015,
     kDance = 2016,
     kGetMode = 2017,
+    kGetStatus = 2018,
+    kPushUp = 2019,
+    kPlaySound = 2020,
+    kStopSound = 2021,
+    kGetRobotInfo = 2022,
+    kStopHandEndEffector = 2023,
+    kShoot = 2024,
+    kGetUpWithMode = 2025,
+    kZeroTorqueDrag = 2026,
+    kRecordTrajectory = 2027,
+    kReplayTrajectory = 2028,
 };
 
 class RotateHeadParameter {
@@ -103,6 +114,65 @@ public:
     booster::robot::RobotMode mode_;
 };
 
+class GetStatusResponse {
+public:
+    GetStatusResponse() = default;
+
+    void FromJson(nlohmann::json &json) {
+        current_mode_ = static_cast<booster::robot::RobotMode>(json["current_mode"]);
+        current_body_control_ = static_cast<booster::robot::BodyControl>(json["current_body_control"]);
+        std::vector<booster::robot::Action> actions_vec;
+        for (const auto &item : json["current_actions"]) {
+            actions_vec.push_back(static_cast<booster::robot::Action>(item));
+        }
+        current_actions_ = std::move(actions_vec);
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["current_mode"] = static_cast<int>(current_mode_);
+        json["current_body_control"] = static_cast<int>(current_body_control_);
+        std::vector<int> actions_int_vec;
+        for (const auto &action : current_actions_) {
+            actions_int_vec.push_back(static_cast<int>(action));
+        }
+        json["current_actions"] = actions_int_vec;
+        return json;
+    }
+
+public:
+    booster::robot::RobotMode current_mode_;
+    booster::robot::BodyControl current_body_control_;
+    std::vector<booster::robot::Action> current_actions_;
+};
+
+class GetRobotInfoResponse {
+public:
+    GetRobotInfoResponse() = default;
+
+    void FromJson(nlohmann::json &json) {
+        name_ = json["name"];
+        nickname_ = json["nickname"];
+        version_ = json["version"];
+        model_ = json["model"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["name"] = name_;
+        json["nickname"] = nickname_;
+        json["version"] = version_;
+        json["model"] = model_;
+        return json;
+    }
+
+public:
+    std::string name_;     // official name for robot
+    std::string nickname_; // nickname for robot, user can set it through mobile app `Booster`
+    std::string version_;  // firmware version
+    std::string model_;    // model name for robot
+};
+
 class MoveParameter {
 public:
     MoveParameter() = default;
@@ -157,6 +227,27 @@ public:
 public:
     int pitch_direction_;
     int yaw_direction_;
+};
+
+class GetUpWithModeParameter {
+public:
+    GetUpWithModeParameter() = default;
+    GetUpWithModeParameter(booster::robot::RobotMode mode) :
+        mode_(mode) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        mode_ = static_cast<booster::robot::RobotMode>(json["mode"]);
+    }
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["mode"] = static_cast<int>(mode_);
+        return json;
+    }
+
+public:
+    booster::robot::RobotMode mode_;
 };
 
 class WaveHandParameter {
@@ -507,11 +598,11 @@ enum class DanceId {
     kNewYear = 0,
     kNezha = 1,
     kTowardsFuture = 2,
-    kPogbaGuesture = 3,
-    kUltramanGuesture = 4,
-    kChineseGreetingGuesture = 5,
-    kCheeringGuesture = 6,
-    kManekiGuesture = 7,
+    kDabbingGesture = 3,
+    kUltramanGesture = 4,
+    kRespectGesture = 5,
+    kCheeringGesture = 6,
+    kLuckyCatGesture = 7,
     kStop = 1000,
 };
 
@@ -541,7 +632,88 @@ public:
     DanceId dance_id_;
 };
 
+class PlaySoundParameter {
+public:
+    PlaySoundParameter() = default;
+    PlaySoundParameter(const std::string &sound_file_path) :
+        sound_file_path_(sound_file_path) {
+    }
 
+    void FromJson(nlohmann::json &json) {
+        sound_file_path_ = json["sound_file_path"];
+    }
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["sound_file_path"] = sound_file_path_;
+        return json;
+    }
+
+private:
+    std::string sound_file_path_;
+};
+
+class ReplayTrajectoryParameter {
+public:
+    ReplayTrajectoryParameter() = default;
+    ReplayTrajectoryParameter(const std::string &traj_file_path) :
+        traj_file_path_(traj_file_path) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        traj_file_path_ = json["traj_file_path"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["traj_file_path"] = traj_file_path_;
+        return json;
+    }
+
+private:
+    std::string traj_file_path_;
+};
+
+class ZeroTorqueDragParameter {
+public:
+    ZeroTorqueDragParameter() = default;
+    ZeroTorqueDragParameter(bool enable) :
+        enable_(enable) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        enable_ = json["enable"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["enable"] = enable_;
+        return json;
+    }
+
+private:
+    bool enable_ = false;
+};
+
+class RecordTrajectoryParameter {
+public:
+    RecordTrajectoryParameter() = default;
+    RecordTrajectoryParameter(bool enable) :
+        enable_(enable) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        enable_ = json["enable"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["enable"] = enable_;
+        return json;
+    }
+
+private:
+    bool enable_ = false;
+};
 
 }
 }
