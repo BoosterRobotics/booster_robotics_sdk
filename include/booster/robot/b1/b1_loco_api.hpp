@@ -42,9 +42,6 @@ enum class LocoApiId {
     kStopHandEndEffector = 2023,
     kShoot = 2024,
     kGetUpWithMode = 2025,
-    kZeroTorqueDrag = 2026,
-    kRecordTrajectory = 2027,
-    kReplayTrajectory = 2028,
 };
 
 class RotateHeadParameter {
@@ -650,69 +647,6 @@ public:
 
 private:
     std::string sound_file_path_;
-};
-
-class ReplayTrajectoryParameter {
-public:
-    ReplayTrajectoryParameter() = default;
-    ReplayTrajectoryParameter(const std::string &traj_file_path) :
-        traj_file_path_(traj_file_path) {
-    }
-
-    void FromJson(nlohmann::json &json) {
-        traj_file_path_ = json["traj_file_path"];
-    }
-
-    nlohmann::json ToJson() const {
-        nlohmann::json json;
-        json["traj_file_path"] = traj_file_path_;
-        return json;
-    }
-
-private:
-    std::string traj_file_path_;
-};
-
-class ZeroTorqueDragParameter {
-public:
-    ZeroTorqueDragParameter() = default;
-    ZeroTorqueDragParameter(bool enable) :
-        enable_(enable) {
-    }
-
-    void FromJson(nlohmann::json &json) {
-        enable_ = json["enable"];
-    }
-
-    nlohmann::json ToJson() const {
-        nlohmann::json json;
-        json["enable"] = enable_;
-        return json;
-    }
-
-private:
-    bool enable_ = false;
-};
-
-class RecordTrajectoryParameter {
-public:
-    RecordTrajectoryParameter() = default;
-    RecordTrajectoryParameter(bool enable) :
-        enable_(enable) {
-    }
-
-    void FromJson(nlohmann::json &json) {
-        enable_ = json["enable"];
-    }
-
-    nlohmann::json ToJson() const {
-        nlohmann::json json;
-        json["enable"] = enable_;
-        return json;
-    }
-
-private:
-    bool enable_ = false;
 };
 
 }
