@@ -116,7 +116,6 @@ private:
     const std::string channel_name_ = "rt/booster_hand_touch_data";
 };
 
-
 class __attribute__((visibility("hidden"))) B1LowHandDataScriber : public std::enable_shared_from_this<B1LowHandDataScriber> {
 public:
     B1LowHandDataScriber(const py::function &py_handler) :
@@ -298,6 +297,13 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
     py::enum_<robot::b1::HandIndex>(m, "B1HandIndex")
         .value("kLeftHand", robot::b1::HandIndex::kLeftHand)
         .value("kRightHand", robot::b1::HandIndex::kRightHand)
+        .export_values();
+
+    py::enum_<robot::b1::BoosterHandType>(m, "B1HandType")
+        .value("kInspireHand", robot::b1::BoosterHandType::kInspireHand)
+        .value("kInspireTouchHand", robot::b1::BoosterHandType::kInspireTouchHand)
+        .value("kRevoHand", robot::b1::BoosterHandType::kRevoHand)
+        .value("kUnknown", robot::b1::BoosterHandType::kUnknown)
         .export_values();
 
     py::enum_<robot::b1::GripperControlMode>(m, "GripperControlMode")
@@ -566,7 +572,7 @@ PYBIND11_MODULE(booster_robotics_sdk_python, m) {
                  * @return 0 if success, otherwise return error code
                  */
                 )pbdoc")
-        .def("ControlDexterousHand", &robot::b1::B1LocoClient::ControlDexterousHand, py::arg("finger_params"), py::arg("hand_index"),
+        .def("ControlDexterousHand", &robot::b1::B1LocoClient::ControlDexterousHand, py::arg("finger_params"), py::arg("hand_index"), py::arg("hand_type"),
              R"pbdoc(
                 /**
                  * @brief Control dexterous hand
