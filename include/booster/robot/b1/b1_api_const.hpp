@@ -16,6 +16,7 @@ static const std::string kTopicHandTouchData = "rt/booster_hand_touch_data";
 static const std::string kTopicTF = "rt/tf";
 static const std::string kTopicRobotStates = "rt/robot_states";
 static const std::string kTopicProneBodyControlStatus = "rt/prone_body_control_status";
+static const std::string kTopicRobotReplayTrajID = "rt/robot_replay_traj_id";
 
 // TODO(@wuyuanye): 按照结构图，把电机的索引完善
 enum class JointIndex {
@@ -106,18 +107,25 @@ enum HandIndex {
     kRightHand = 1,
 };
 
+enum class BoosterHandType {
+    kInspireHand = 0,
+    kInspireTouchHand = 2,
+    kRevoHand = 3,
+    kUnknown = -1, // for error handling
+};
+
 enum HandAction {
     kHandOpen = 0,
     kHandClose = 1,
 };
 
 enum RemoteControllerEvent {
-    NONE = 0, // no event
-    AXIS = 0x600, // axis motion
-    HAT = 0x602, // hat position change
+    NONE = 0,            // no event
+    AXIS = 0x600,        // axis motion
+    HAT = 0x602,         // hat position change
     BUTTON_DOWN = 0x603, // button pressed
-    BUTTON_UP = 0x604, // button released
-    REMOVE = 0x606 // device has been removed
+    BUTTON_UP = 0x604,   // button released
+    REMOVE = 0x606       // device has been removed
 };
 
 }

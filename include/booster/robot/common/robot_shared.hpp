@@ -42,6 +42,9 @@ enum class Action {
     kGestureCheer = 10,
     kGestureLuckyCat = 11,
     kGestureBoxing = 12,
+    kZeroTorqueDrag = 13,
+    kRecordTraj = 14,
+    kRunRecordedTraj = 15,
 };
 
 enum class Frame {

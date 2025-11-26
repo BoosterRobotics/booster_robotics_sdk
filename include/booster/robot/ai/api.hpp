@@ -10,7 +10,7 @@ namespace robot {
 enum class AiApiId {
     kStartAiChat = 2000,
     kStopAiChat = 2001,
-    kSpeek = 2002,
+    kSpeak = 2002,
     kStartFaceTracking = 2003,
     kStopFaceTracking = 2004,
 };
@@ -133,10 +133,10 @@ public:
     bool enable_face_tracking_;
 };
 
-class SpeekParameter {
+class SpeakParameter {
 public:
-    SpeekParameter() = default;
-    SpeekParameter(const std::string &msg) :
+    SpeakParameter() = default;
+    SpeakParameter(const std::string &msg) :
         msg_(msg) {
     }
 

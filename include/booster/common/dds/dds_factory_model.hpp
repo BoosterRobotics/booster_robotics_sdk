@@ -18,6 +18,8 @@ public:
 
     void Init(uint32_t domain_id, const std::string &network_interface = "");
     void Init(const nlohmann::json &config);
+    void InitDefault(int32_t domain_id);
+    void InitWithConfigPath(int32_t domain_id, const std::string &config_file_path);
 
     void CloseWriter(const std::string &channel_name) {
         publisher_->delete_datawriter(publisher_->lookup_datawriter(channel_name.c_str()));
@@ -73,8 +75,12 @@ public:
     template <typename MSG>
     void SetReader(
         DdsTopicChannelPtr<MSG> topic_channel,
-        const std::function<void(const void *)> &handler) {
+        const std::function<void(const void *)> &handler,
+        bool reliable = false) {
         DdsReaderCallback cb(handler);
+        if (reliable) {
+            reader_qos_.reliability().kind = RELIABLE_RELIABILITY_QOS;
+        }
         topic_channel->SetReader(subscriber_, reader_qos_, cb);
     }
 

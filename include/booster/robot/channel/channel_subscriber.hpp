@@ -12,13 +12,15 @@ namespace robot {
 template <typename MSG>
 class ChannelSubscriber {
 public:
-    explicit ChannelSubscriber(const std::string &channel_name) :
-        channel_name_(channel_name) {
+    explicit ChannelSubscriber(const std::string &channel_name, bool reliable = false) :
+        channel_name_(channel_name),
+        reliable_(reliable) {
     }
 
-    explicit ChannelSubscriber(const std::string &channel_name, const std::function<void(const void *)> &handler) :
+    explicit ChannelSubscriber(const std::string &channel_name, const std::function<void(const void *)> &handler, bool reliable = false) :
         channel_name_(channel_name),
-        handler_(handler) {
+        handler_(handler),
+        reliable_(reliable) {
     }
 
     void InitChannel(const std::function<void(const void *)> &handler) {
@@ -28,7 +30,8 @@ public:
 
     void InitChannel() {
         if (handler_) {
-            channel_ptr_ = ChannelFactory::Instance()->CreateRecvChannel<MSG>(channel_name_, handler_);
+            std::cout << "ChannelSubscriber::InitChannel: setting reliability: " << reliable_ << std::endl;
+            channel_ptr_ = ChannelFactory::Instance()->CreateRecvChannel<MSG>(channel_name_, handler_, reliable_);
         } else {
             std::cerr << "ChannelSubscriber::InitChannel: handler is not set" << std::endl;
         }
@@ -49,6 +52,7 @@ private:
     std::string channel_name_;
     ChannelPtr<MSG> channel_ptr_;
     std::function<void(const void *)> handler_;
+    bool reliable_{false};
 };
 
 }

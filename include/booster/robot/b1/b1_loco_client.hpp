@@ -352,8 +352,8 @@ public:
      *
      * @return 0 if success, otherwise return error code
      */
-    int32_t ControlDexterousHand(const std::vector<DexterousFingerParameter> &finger_params, HandIndex hand_index) {
-        ControlDexterousHandParameter control_dexterous_hand(finger_params, hand_index);
+    int32_t ControlDexterousHand(const std::vector<DexterousFingerParameter> &finger_params, HandIndex hand_index, BoosterHandType hand_type = BoosterHandType::kInspireHand) {
+        ControlDexterousHandParameter control_dexterous_hand(finger_params, hand_index, hand_type);
         std::string param = control_dexterous_hand.ToJson().dump();
         return SendApiRequest(LocoApiId::kControlDexterousHand, param);
     }
@@ -390,6 +390,45 @@ public:
      */
     int32_t StopSound() {
         return SendApiRequest(LocoApiId::kStopSound, "");
+    }
+
+    /**
+     * @brief Enable or disable zero torque drag, depending on active state
+     *
+     * @param active true to enable, false to disable
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t ZeroTorqueDrag(bool active) {
+        ZeroTorqueDragParameter zero_torque_drag(active);
+        std::string param = zero_torque_drag.ToJson().dump();
+        return SendApiRequest(LocoApiId::kZeroTorqueDrag, param);
+    }
+
+    /**
+     * @brief Start or stop recording trajectory, depending on active state
+     *
+     * @param active true to start recording, false to stop
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t RecordTrajectory(bool active) {
+        RecordTrajectoryParameter record_trajectory(active);
+        std::string param = record_trajectory.ToJson().dump();
+        return SendApiRequest(LocoApiId::kRecordTrajectory, param);
+    }
+
+    /**
+     * @brief Replay trajectory
+     *
+     * @param active true to start replaying, false to stop
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t ReplayTrajectory(std::string path) {
+        ReplayTrajectoryParameter replay_trajectory(path);
+        std::string param = replay_trajectory.ToJson().dump();
+        return SendApiRequest(LocoApiId::kReplayTrajectory, param);
     }
 
 private:

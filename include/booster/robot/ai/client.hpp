@@ -73,9 +73,9 @@ public:
      *
      * @return 0 if success, otherwise return error code
      */
-    int32_t Speek(const SpeekParameter &param) {
+    int32_t Speak(const SpeakParameter &param) {
         std::string body = param.ToJson().dump();
-        return SendApiRequest(AiApiId::kSpeek, body);
+        return SendApiRequest(AiApiId::kSpeak, body);
     }
 
     /**

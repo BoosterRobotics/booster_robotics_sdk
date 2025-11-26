@@ -27,6 +27,8 @@ public:
 
     void Init(int32_t domain_id, const std::string &network_interface = "");
     void Init(const nlohmann::json &config);
+    void InitDefault(int32_t domain_id);
+    void InitWithConfigPath(int32_t domain_id, const std::string &config_file_path);
 
     void CloseWriter(const std::string &channel_name);
     void CloseReader(const std::string &channel_name);
@@ -40,9 +42,9 @@ public:
     }
 
     template <typename MSG>
-    ChannelPtr<MSG> CreateRecvChannel(const std::string &name, std::function<void(const void *)> handler) {
+    ChannelPtr<MSG> CreateRecvChannel(const std::string &name, std::function<void(const void *)> handler, bool reliable = false) {
         ChannelPtr<MSG> channel_ptr = dds_factory_model_->CreateTopicChannel<MSG>(name);
-        dds_factory_model_->SetReader(channel_ptr, handler);
+        dds_factory_model_->SetReader(channel_ptr, handler, reliable);
         return channel_ptr;
     }
 
