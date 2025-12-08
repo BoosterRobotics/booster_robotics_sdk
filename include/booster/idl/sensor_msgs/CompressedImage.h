@@ -49,7 +49,7 @@
 
 // ------------------------------ Pub Sub Type End ----------------------------
 
-#include "../std_msgs/Header.h"
+#include "booster/idl/std_msgs/Header.h"
 
 #if defined(_WIN32)
 #if defined(EPROSIMA_USER_DLL_EXPORT)

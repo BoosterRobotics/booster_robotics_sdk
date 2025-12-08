@@ -431,6 +431,32 @@ public:
         return SendApiRequest(LocoApiId::kReplayTrajectory, param);
     }
 
+    /**
+     * @brief Make the robot perform a whole body dance.
+     *
+     * @param dance_id The identifier of the whole body dance to be performed
+     *
+     * @return int32_t Returns 0 if successful, otherwise returns an error code
+     */
+    int32_t WholeBodyDance(WholeBodyDanceId dance_id) {
+        WholeBodyDanceParameter dance_param(dance_id);
+        std::string param = dance_param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kWholeBodyDance, param);
+    }
+
+    /**
+     * @brief Make the UpperBodyCustomControl action start or stop.
+     *
+     * @param start true to start the action, false to stop it
+     *
+     * @return int32_t Returns 0 if successful, otherwise returns an error code
+     */
+    int32_t UpperBodyCustomControl(bool start) {
+        UpperBodyCustomControlParameter upper_body_param(start);
+        std::string param = upper_body_param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kUpperBodyCustomControl, param);
+    }
+
 private:
     std::shared_ptr<RpcClient> rpc_client_;
 };

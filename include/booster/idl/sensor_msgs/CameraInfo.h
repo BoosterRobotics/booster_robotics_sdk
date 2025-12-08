@@ -51,7 +51,7 @@
 // ------------------------------ Pub Sub Type End ----------------------------
 
 #include "../sensor_msgs/RegionOfInterest.h"
-#include "../std_msgs/Header.h"
+#include "booster/idl/std_msgs/Header.h"
 
 #if defined(_WIN32)
 #if defined(EPROSIMA_USER_DLL_EXPORT)

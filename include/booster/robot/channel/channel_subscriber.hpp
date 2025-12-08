@@ -17,9 +17,14 @@ public:
         reliable_(reliable) {
     }
 
-    explicit ChannelSubscriber(const std::string &channel_name, const std::function<void(const void *)> &handler, bool reliable = false) :
+    template <class F,
+              std::enable_if_t<
+                  std::is_invocable_r_v<void, F, const void *>, int> = 0>
+    explicit ChannelSubscriber(const std::string &channel_name,
+                               F &&handler,
+                               bool reliable = false) :
         channel_name_(channel_name),
-        handler_(handler),
+        handler_(std::forward<F>(handler)),
         reliable_(reliable) {
     }
 

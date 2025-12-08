@@ -41,65 +41,68 @@ public:
     }
 
 public:
-//  The timbre (or tone color) can be adjusted, allowing for settings like male or female voices 
-//  The following are examples of certain scenarios  
-//  zh_male_wennuanahu_moon_bigtts : Supports Chinese and American English.
-//  zh_female_shuangkuaisisi_emo_v2_mars_bigtts : Supports Chinese and British English. 
+    //  The timbre (or tone color) can be adjusted, allowing for settings like male or female voices
+    //  The following are examples of certain scenarios
+    //  zh_male_wennuanahu_moon_bigtts : Supports Chinese and American English.
+    //  zh_female_shuangkuaisisi_emo_v2_mars_bigtts : Supports Chinese and British English.
     std::string voice_type_;
-//  Filter out the text enclosed within specified punctuation marks from the large language model's response before performing speech synth//  You need to define in the LLM's prompt which content should be placed within these specified punctuation marks.
-//  Supported values and their meanings are as follows:
-//  1: Chinese parentheses ()
-//  2: English parentheses ()
-//  3: Chinese square brackets 【】
-//  4: English square brackets []
-//  5: English curly braces {}
-    std::vector<int8_t> ignore_bracket_text_; 
+    //  Filter out the text enclosed within specified punctuation marks from the large language model's response before performing speech synth//  You need to define in the LLM's prompt which content should be placed within these specified punctuation marks.
+    //  Supported values and their meanings are as follows:
+    //  1: Chinese parentheses ()
+    //  2: English parentheses ()
+    //  3: Chinese square brackets 【】
+    //  4: English square brackets []
+    //  5: English curly braces {}
+    std::vector<int8_t> ignore_bracket_text_;
 };
 
 class LlmConfig {
 public:
     LlmConfig() = default;
-    LlmConfig(const std::string &system_prompt, const std::string & welcome_msg) :
-      system_prompt_(system_prompt), welcome_msg_(welcome_msg) {
-
+    LlmConfig(const std::string &system_prompt, const std::string &welcome_msg, const std::string &prompt_name = "") :
+        system_prompt_(system_prompt), welcome_msg_(welcome_msg), prompt_name_(prompt_name) {
     }
 
-    void FromJson(nlohmann::json &json) { 
-       system_prompt_ = json.at("system_prompt").get<std::string>();
-       welcome_msg_ = json.at("welcome_msg").get<std::string>();
+    void FromJson(nlohmann::json &json) {
+        system_prompt_ = json.at("system_prompt").get<std::string>();
+        welcome_msg_ = json.at("welcome_msg").get<std::string>();
+        prompt_name_ = json.at("prompt_name").get<std::string>();
     }
 
     nlohmann::json ToJson() const {
-         return  {
-            {"system_prompt",  system_prompt_},
-            {"welcome_msg", welcome_msg_}}; 
+        return {
+            {"system_prompt", system_prompt_},
+            {"welcome_msg", welcome_msg_},
+            {"prompt_name", prompt_name_},
+        };
     }
+
 public:
     std::string system_prompt_; // The system prompt defines the character's persona / personality
-    std::string welcome_msg_;      
+    std::string welcome_msg_;
+    std::string prompt_name_;
 };
 
 class AsrConfig {
-public: 
+public:
     AsrConfig() = default;
     AsrConfig(int32_t interrupt_speech_duration, std::vector<std::string> interrupt_keywords) :
-       interrupt_speech_duration_(interrupt_speech_duration),  interrupt_keywords_(interrupt_keywords) {
-          
+        interrupt_speech_duration_(interrupt_speech_duration), interrupt_keywords_(interrupt_keywords) {
     }
-    
-    void FromJson(nlohmann::json &json) { 
+
+    void FromJson(nlohmann::json &json) {
         interrupt_speech_duration_ = json["interrupt_speech_duration"];
         interrupt_keywords_ = json["interrupt_keywords"];
     }
 
     nlohmann::json ToJson() const {
-         return {{"interrupt_speech_duration", interrupt_speech_duration_},
-          {"interrupt_keywords", interrupt_keywords_}};
-    }     
-    
+        return {{"interrupt_speech_duration", interrupt_speech_duration_},
+                {"interrupt_keywords", interrupt_keywords_}};
+    }
+
 public:
-    int32_t interrupt_speech_duration_;  // The threshold for triggering automatic interruption
-    std::vector<std::string> interrupt_keywords_;  // List of interruption-triggering keywords
+    int32_t interrupt_speech_duration_;           // The threshold for triggering automatic interruption
+    std::vector<std::string> interrupt_keywords_; // List of interruption-triggering keywords
 };
 
 class StartAiChatParameter {
@@ -116,7 +119,7 @@ public:
     }
 
     nlohmann::json ToJson() const {
-        nlohmann::json json;        
+        nlohmann::json json;
         json["interrupt_mode"] = interrupt_mode_;
         json["asr_config"] = asr_config_.ToJson();
         json["llm_config"] = llm_config_.ToJson();
@@ -126,8 +129,8 @@ public:
     }
 
 public:
-    bool interrupt_mode_ = false;  // This mode allows a person to cut off the robot's speech 
-    TtsConfig tts_config_; 
+    bool interrupt_mode_ = false; // This mode allows a person to cut off the robot's speech
+    TtsConfig tts_config_;
     LlmConfig llm_config_;
     AsrConfig asr_config_;
     bool enable_face_tracking_;
@@ -154,6 +157,5 @@ public:
 public:
     std::string msg_;
 };
-
 }
 } // namespace booster::robot

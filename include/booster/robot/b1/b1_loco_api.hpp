@@ -45,6 +45,8 @@ enum class LocoApiId {
     kZeroTorqueDrag = 2026,
     kRecordTrajectory = 2027,
     kReplayTrajectory = 2028,
+    kWholeBodyDance = 2029,
+    kUpperBodyCustomControl = 2030,
 };
 
 class RotateHeadParameter {
@@ -717,6 +719,59 @@ public:
 
 private:
     bool enable_ = false;
+};
+
+enum class WholeBodyDanceId {
+    kArbicDance = 0,
+    kMichaelDance1 = 1,
+    kMichaelDance2 = 2,
+    kMichaelDance3 = 3,
+    kMoonWalk = 4,
+    kBoxingStyleKick = 5,
+    kRoundhouseKick = 6,
+};
+
+class WholeBodyDanceParameter {
+public:
+    WholeBodyDanceParameter() = default;
+    WholeBodyDanceParameter(WholeBodyDanceId dance_id) :
+        dance_id_(dance_id) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        dance_id_ = json["dance_id"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["dance_id"] = dance_id_;
+        return json;
+    }
+
+public:
+    WholeBodyDanceId dance_id_;
+};
+
+class UpperBodyCustomControlParameter {
+public:
+    UpperBodyCustomControlParameter() = default;
+    UpperBodyCustomControlParameter(bool start) :
+        start_(start) {
+    }
+
+    void FromJson(nlohmann::json &json) {
+        start_ = json["start"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["start"] = start_;
+        return json;
+    }
+
+public:
+    bool start_;
 };
 
 }
