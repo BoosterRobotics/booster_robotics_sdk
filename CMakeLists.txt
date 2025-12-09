@@ -24,6 +24,8 @@ add_executable(low_level_hand_data_subscriber example/low_level/low_level_hand_d
 add_executable(b1_low_sdk_example example/low_level/b1_low_sdk_example.cpp)
 add_executable(b1_7dof_arm_low_sdk_example example/low_level/b1_7dof_arm_low_sdk_example.cpp)
 add_executable(odometer_example example/low_level/odometer_example.cpp)
+add_executable(battery_state_subscriber example/low_level/battery_state_subscriber.cpp)
+
 
 
 include_directories(BEFORE $(PROJECT_SOURCE_DIR)/include)
