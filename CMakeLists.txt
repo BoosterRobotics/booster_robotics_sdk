@@ -28,7 +28,7 @@ add_executable(battery_state_subscriber example/low_level/battery_state_subscrib
 
 
 
-include_directories(BEFORE $(PROJECT_SOURCE_DIR)/include)
+include_directories(BEFORE ${PROJECT_SOURCE_DIR}/include)
 
 if(BUILD_PYTHON_BINDING)
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
@@ -44,6 +44,7 @@ if(BUILD_PYTHON_BINDING)
     find_package(pybind11 CONFIG REQUIRED)
 
     python3_add_library(booster_robotics_sdk_python MODULE python/binding.cpp WITH_SOABI)
+    target_link_libraries(booster_robotics_sdk_python PRIVATE pybind11::headers)
 
     target_compile_definitions(booster_robotics_sdk_python PRIVATE VERSION_INFO=${PROJECT_VERSION})
 
@@ -55,10 +56,10 @@ if(BUILD_PYTHON_BINDING)
     add_custom_command(
         TARGET booster_robotics_sdk_python
         POST_BUILD
-        COMMAND PYTHONPATH=${CMAKE_SOURCE_DIR}/build:/${PYTHONPATH} pybind11-stubgen -o ${CMAKE_SOURCE_DIR}/build booster_robotics_sdk_python
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}" pybind11-stubgen -o ${CMAKE_CURRENT_BINARY_DIR} booster_robotics_sdk_python
     )
 
-    install(TARGETS booster_robotics_sdk_python LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES})
-    install(FILES ${CMAKE_SOURCE_DIR}/build/booster_robotics_sdk_python.pyi DESTINATION ${PYTHON_SITE_PACKAGES})    
+    install(TARGETS booster_robotics_sdk_python LIBRARY DESTINATION ${SKBUILD_PLATLIB_DIR})
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/booster_robotics_sdk_python.pyi DESTINATION ${SKBUILD_PLATLIB_DIR} OPTIONAL)    
 endif()
 
