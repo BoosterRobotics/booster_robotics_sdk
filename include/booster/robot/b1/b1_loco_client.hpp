@@ -274,6 +274,29 @@ public:
     }
 
     /**
+     * @brief Move dual hand end-effector to target postures(position & orientation)
+     *
+     * @param left_target_posture Represents the target posture in base frame (torso frame) that the left hand end-effector should reach.
+     * It contains position & orientation.
+     * @param right_target_posture Represents the target posture in base frame (torso frame) that the right hand end-effector should reach.
+     * It contains position & orientation.
+     * @param time_mills Specifies the duration, in milliseconds, for completing the movement.
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t MoveDualHandEndEffector(
+        const Posture &left_target_posture,
+        const Posture &right_target_posture,
+        int time_millis) {
+        MoveDualHandEndEffectorParameter move_dual_hand(
+            left_target_posture,
+            right_target_posture,
+            time_millis);
+        std::string param = move_dual_hand.ToJson().dump();
+        return SendApiRequest(LocoApiId::kMoveDualHandEndEffector, param);
+    }
+
+    /**
      * @brief Stop hand end-effector movement
      *
      * @return 0 if success, otherwise return error code
@@ -532,6 +555,17 @@ public:
      */
     int32_t ExitWBCGait() {
         return SendApiRequest(LocoApiId::kExitWBCGait, "");
+    }
+
+    /**
+     * @brief side-foot kick
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t VisualKick(bool start) {
+        VisualKickParameter parameter(start);
+        std::string param = parameter.ToJson().dump();
+        return SendApiRequest(LocoApiId::kVisualKick, param);
     }
 
 private:

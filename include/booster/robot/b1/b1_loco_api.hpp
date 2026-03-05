@@ -53,6 +53,8 @@ enum class LocoApiId {
     kUnloadCustomTrainedTraj = 2034,
     kEnterWBCGait = 2035,
     kExitWBCGait = 2036,
+    kMoveDualHandEndEffector = 2037,
+    kVisualKick = 2038,
 };
 
 class RotateHeadParameter {
@@ -462,6 +464,39 @@ public:
     HandIndex hand_index_;
 };
 
+class MoveDualHandEndEffectorParameter {
+public:
+    MoveDualHandEndEffectorParameter() = default;
+    MoveDualHandEndEffectorParameter(
+        const Posture &left_target_posture,
+        const Posture &right_target_posture,
+        int time_millis) :
+        left_target_posture_(left_target_posture),
+        right_target_posture_(right_target_posture),
+        time_millis_(time_millis) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        left_target_posture_.FromJson(json["left_target_posture"]);
+        right_target_posture_.FromJson(json["right_target_posture"]);
+        time_millis_ = json["time_millis"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["left_target_posture"] = left_target_posture_.ToJson();
+        json["right_target_posture"] = right_target_posture_.ToJson();
+        json["time_millis"] = time_millis_;
+        return json;
+    }
+
+public:
+    Posture left_target_posture_;
+    Posture right_target_posture_;
+    int time_millis_ = 1000;
+};
+
 class GetFrameTransformParameter {
 public:
     GetFrameTransformParameter() = default;
@@ -742,6 +777,8 @@ enum class WholeBodyDanceId {
     kMoonWalk = 4,
     kBoxingStyleKick = 5,
     kRoundhouseKick = 6,
+    kShanHeGuRenDance = 7,
+    kGaiGeChunFengDance = 8,
 };
 
 class WholeBodyDanceParameter {
@@ -933,6 +970,28 @@ public:
 
 public:
     std::string tid_;
+};
+
+class VisualKickParameter {
+public:
+    VisualKickParameter() = default;
+    VisualKickParameter(bool start) :
+        start_(start) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        start_ = json["start"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["start"] = start_;
+        return json;
+    }
+
+private:
+    bool start_;
 };
 
 }
