@@ -13,7 +13,16 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_STANDARD 17)
 
-link_libraries(booster_robotics_sdk.a fastrtps fastcdr libfoonathan_memory-0.7.3.a)
+# Detect architecture and set library path
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    set(ARCH_DIR "aarch64")
+else()
+    set(ARCH_DIR "x86_64")
+endif()
+
+link_directories(${PROJECT_SOURCE_DIR}/lib/${ARCH_DIR} ${PROJECT_SOURCE_DIR}/third_party/lib/${ARCH_DIR})
+include_directories(BEFORE ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/third_party/include)
+link_libraries(booster_robotics_sdk fastrtps fastcdr foonathan_memory-0.7.3)
 
 add_executable(b1_loco_example_client example/high_level/b1_loco_example_client.cpp)
 add_executable(b1_arm_sdk_example_client example/high_level/b1_arm_sdk_example.cpp)
@@ -25,10 +34,6 @@ add_executable(b1_low_sdk_example example/low_level/b1_low_sdk_example.cpp)
 add_executable(b1_7dof_arm_low_sdk_example example/low_level/b1_7dof_arm_low_sdk_example.cpp)
 add_executable(odometer_example example/low_level/odometer_example.cpp)
 add_executable(battery_state_subscriber example/low_level/battery_state_subscriber.cpp)
-
-
-
-include_directories(BEFORE $(PROJECT_SOURCE_DIR)/include)
 
 if(BUILD_PYTHON_BINDING)
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
@@ -55,7 +60,10 @@ if(BUILD_PYTHON_BINDING)
     add_custom_command(
         TARGET booster_robotics_sdk_python
         POST_BUILD
-        COMMAND PYTHONPATH=${CMAKE_SOURCE_DIR}/build:/${PYTHONPATH} pybind11-stubgen -o ${CMAKE_SOURCE_DIR}/build booster_robotics_sdk_python
+        COMMAND ${CMAKE_COMMAND} -E env
+            "LD_LIBRARY_PATH=${PROJECT_SOURCE_DIR}/third_party/lib/${ARCH_DIR}:$ENV{LD_LIBRARY_PATH}"
+            "PYTHONPATH=${CMAKE_SOURCE_DIR}/build:$ENV{PYTHONPATH}"
+            pybind11-stubgen -o ${CMAKE_SOURCE_DIR}/build booster_robotics_sdk_python
     )
 
     install(TARGETS booster_robotics_sdk_python LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES})
