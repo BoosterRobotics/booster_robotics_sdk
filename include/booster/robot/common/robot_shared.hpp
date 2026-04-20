@@ -68,5 +68,11 @@ enum class ProneBodyControlPosture {
     kSoccerKicking = 5,
 };
 
+enum class RobocupBehaviorStatus {
+    RUNNING = 0,
+    SHOOTING = 1,
+    PASSING = 2,
+};
+
 }
 } // namespace booster::robot

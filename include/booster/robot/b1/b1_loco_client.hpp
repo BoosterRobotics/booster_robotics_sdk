@@ -20,6 +20,9 @@ public:
     void Init();
 
     void Init(const std::string &robot_name);
+    bool WaitForService(
+        int64_t timeout_ms = RpcClient::kDefaultWaitForServiceTimeoutMs,
+        bool require_response_path = true);
     /**
      * @brief Send API request to B1 robot
      *
@@ -29,6 +32,8 @@ public:
      * @return 0 if success, otherwise return error code
      */
     int32_t SendApiRequest(LocoApiId api_id, const std::string &param);
+    int32_t SendApiRequest(LocoApiId api_id, const std::string &param, int64_t timeout_ms);
+    int32_t SendApiRequestFireAndForget(LocoApiId api_id, const std::string &param);
 
     /**
      * @brief Send API request to B1 robot with response
@@ -139,6 +144,12 @@ public:
         MoveParameter move(vx, vy, vyaw);
         std::string param = move.ToJson().dump();
         return SendApiRequest(LocoApiId::kMove, param);
+    }
+
+    int32_t MoveCommand(float vx, float vy, float vyaw) {
+        MoveParameter move(vx, vy, vyaw);
+        std::string param = move.ToJson().dump();
+        return SendApiRequestFireAndForget(LocoApiId::kMove, param);
     }
 
     /**
@@ -562,10 +573,76 @@ public:
      *
      * @return 0 if success, otherwise return error code
      */
-    int32_t VisualKick(bool start) {
-        VisualKickParameter parameter(start);
+    int32_t VisualKick(bool start, VisualKickVersion version = VisualKickVersion::kV1) {
+        VisualKickParameter parameter(start, version);
         std::string param = parameter.ToJson().dump();
         return SendApiRequest(LocoApiId::kVisualKick, param);
+    }
+
+    /**
+     * @brief Lion dance prepare
+     *
+     * @details State transition rules:
+     * - Allowed entry from: Walking mode.
+     * - Allowed transition to: LionDanceMove or LionDanceStart.
+     *
+     * @param start True to enter Lion Dance Move gesture, false to exit.
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t LionDancePrepare(bool start) {
+        LionDancePrepareParameter param(start);
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kLionDancePrepare, json);
+    }
+
+    /**
+     * @brief Lion dance start
+     *
+     * @details State transition rules:
+     * - Allowed entry from: LionDancePrepare or LionDanceMove ONLY.
+     *
+     * @warning
+     * STRICTLY PROHIBITED to enter from any other state. Doing so will
+     * cause abrupt joint jumping (discontinuity) in the arm actuators,
+     * which poses a safety risk and may damage the hardware.
+     *
+     * @param dance_id The specific ID of the lion dance.
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t LionDanceStart(int dance_id) {
+        LionDanceStartParameter param(dance_id);
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kLionDanceStart, json);
+    }
+
+    /**
+     * @brief Lion dance move
+     *
+     * @details State transition rules:
+     * - Allowed entry from: LionDancePrepare and Walk Gait.
+     * - Allowed transition to: LionDanceStart.
+     *
+     * @param start True to start movement synchronization, false to stop.
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t LionDanceMove(bool start) {
+        LionDanceMoveParameter param{start};
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kLionDanceMove, json);
+    }
+
+    /**
+     * @brief Switch robot gait type
+     *
+     * @param gait_type gait type, options are:
+     * kWholeBodyHumanlikeGait, kHalfBodyHumanlikeGait, kHalfBodyHumanlikeGaitV2
+     *
+     * @return 0 if success, otherwise return error code
+     */
+    int32_t SwitchGait(GaitType gait_type) {
+        SwitchGaitParameter param(gait_type);
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kSwitchGait, json);
     }
 
 private:

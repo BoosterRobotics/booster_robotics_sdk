@@ -4,9 +4,8 @@
 #include <booster/common/dds/dds_topic_channel.hpp>
 #include <booster/third_party/nlohmann_json/json.hpp>
 
-#include <map>
-
 #include <iostream>
+#include <map>
 
 namespace booster {
 namespace common {
@@ -42,8 +41,7 @@ public:
     }
 
     template <typename MSG>
-    DdsTopicChannelPtr<MSG> CreateTopicChannel(
-        const std::string &topic_name) {
+    DdsTopicChannelPtr<MSG> CreateTopicChannel(const std::string &topic_name) {
         TypeSupport type_support(new MSG());
         DdsTopicChannelPtr<MSG> topic_channel = std::make_shared<DdsTopicChannel<MSG>>();
         if (participant_ == nullptr) {
@@ -68,20 +66,36 @@ public:
     }
 
     template <typename MSG>
-    void SetWriter(DdsTopicChannelPtr<MSG> topic_channel) {
-        topic_channel->SetWriter(publisher_, writer_qos_);
+    void SetWriter(
+        DdsTopicChannelPtr<MSG> topic_channel,
+        bool reliable = false) {
+        if (topic_channel == nullptr) {
+            std::cerr << "Failed to set writer: topic channel is null." << std::endl;
+            return;
+        }
+        auto writer_qos = writer_qos_;
+        if (reliable) {
+            writer_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+        }
+        topic_channel->SetWriter(publisher_, writer_qos);
     }
 
     template <typename MSG>
     void SetReader(
         DdsTopicChannelPtr<MSG> topic_channel,
         const std::function<void(const void *)> &handler,
-        bool reliable = false) {
-        DdsReaderCallback cb(handler);
-        if (reliable) {
-            reader_qos_.reliability().kind = RELIABLE_RELIABILITY_QOS;
+        bool reliable = false,
+        const DdsReaderExecutorOptions &executor_options = {}) {
+        if (topic_channel == nullptr) {
+            std::cerr << "Failed to set reader: topic channel is null." << std::endl;
+            return;
         }
-        topic_channel->SetReader(subscriber_, reader_qos_, cb);
+        DdsReaderCallback cb(handler);
+        auto reader_qos = reader_qos_;
+        if (reliable) {
+            reader_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+        }
+        topic_channel->SetReader(subscriber_, reader_qos, cb, executor_options);
     }
 
 private:

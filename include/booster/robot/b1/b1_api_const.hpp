@@ -17,6 +17,8 @@ static const std::string kTopicTF = "rt/tf";
 static const std::string kTopicRobotStates = "rt/robot_states";
 static const std::string kTopicProneBodyControlStatus = "rt/prone_body_control_status";
 static const std::string kTopicRobotReplayTrajID = "rt/robot_replay_traj_id";
+static const std::string kTopicRobocupBehaviorStatus = "rt/robocup_behavior_status";
+static const std::string kTopicKickReference = "rt/kick_ball";
 
 // TODO(@wuyuanye): 按照结构图，把电机的索引完善
 enum class JointIndex {
@@ -54,6 +56,40 @@ enum class JointIndex {
     kRightKneePitch = 20,
     kCrankUpRight = 21,
     kCrankDownRight = 22,
+};
+
+enum class JointIndexK1 {
+    // head
+    kHeadYaw = 0,
+    kHeadPitch = 1,
+
+    // Left arm
+    kLeftShoulderPitch = 2,
+    kLeftShoulderRoll = 3,
+    kLeftElbowPitch = 4,
+    kLeftElbowYaw = 5,
+
+    // Right arm
+    kRightShoulderPitch = 6,
+    kRightShoulderRoll = 7,
+    kRightElbowPitch = 8,
+    kRightElbowYaw = 9,
+
+    // left leg
+    kLeftHipPitch = 10,
+    kLeftHipRoll = 11,
+    kLeftHipYaw = 12,
+    kLeftKneePitch = 13,
+    kCrankUpLeft = 14,
+    kCrankDownLeft = 15,
+
+    // right leg
+    kRightHipPitch = 16,
+    kRightHipRoll = 17,
+    kRightHipYaw = 18,
+    kRightKneePitch = 19,
+    kCrankUpRight = 20,
+    kCrankDownRight = 21,
 };
 
 enum class JointIndexWith7DofArm {
@@ -101,6 +137,7 @@ enum class JointIndexWith7DofArm {
 
 static const size_t kJointCnt = 23;
 static const size_t kJointCnt7DofArm = 29;
+static const size_t kJointCntK1 = 22;
 
 enum HandIndex {
     kLeftHand = 0,
