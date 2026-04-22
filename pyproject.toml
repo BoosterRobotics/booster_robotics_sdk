@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core>=0.3.3", "pybind11"]
+requires = ["scikit-build-core>=0.3.3", "pybind11", "pybind11-stubgen"]
 build-backend = "scikit_build_core.build"
 
 
@@ -30,6 +30,7 @@ test = ["pytest"]
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
+cmake.define.BUILD_PYTHON_BINDING = "ON"
 
 
 [tool.pytest.ini_options]
