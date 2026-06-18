@@ -7,8 +7,6 @@
 #include <booster/robot/rpc/rpc_client.hpp>
 #include "vision_api.hpp"
 
-using namespace booster::robot;
-
 namespace booster {
 namespace robot {
 namespace vision {

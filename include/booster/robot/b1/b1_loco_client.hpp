@@ -6,8 +6,6 @@
 #include <booster/robot/rpc/rpc_client.hpp>
 #include "b1_loco_api.hpp"
 
-using namespace booster::robot;
-
 namespace booster {
 namespace robot {
 namespace b1 {
@@ -21,7 +19,7 @@ public:
 
     void Init(const std::string &robot_name);
     bool WaitForService(
-        int64_t timeout_ms = RpcClient::kDefaultWaitForServiceTimeoutMs,
+        int64_t timeout_ms = booster::robot::RpcClient::kDefaultWaitForServiceTimeoutMs,
         bool require_response_path = true);
     /**
      * @brief Send API request to B1 robot
@@ -132,6 +130,69 @@ public:
     }
 
     /**
+     * @brief Query IMU devices (static catalog from robot_config). RPC JSON uses field "imus".
+     * @param[out] info kind_ is kSensors; json_ holds RPC body. Use booster::robot::ImuInfoListFromDeviceInfo(list, info)
+     * (see device_info_parser.hpp).
+     * @return 0 if success, otherwise error code
+     */
+    int32_t GetSensors(DeviceInfo &info) {
+        std::string param{};
+        Response resp;
+        int32_t ret =
+            SendApiRequestWithResponse(LocoApiId::kGetSensors, param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        info.FromJson(body_json);
+        info.kind_ = DeviceInfoKind::kSensors;
+        return ret;
+    }
+
+    /**
+     * @brief Query hand end-effector catalog from robot_config (static). RPC JSON uses field
+     * "hands"; use booster::robot::HandListFromDeviceInfo(list, info) (see device_info_parser.hpp).
+     *
+     * @param[out] info kind_ is kHands; json_ holds RPC body (field "hands").
+     * @return 0 if success, otherwise error code
+     */
+    int32_t GetHands(DeviceInfo &info) {
+        std::string param{};
+        Response resp;
+        int32_t ret =
+            SendApiRequestWithResponse(LocoApiId::kGetHands, param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        info.FromJson(body_json);
+        info.kind_ = DeviceInfoKind::kHands;
+        return ret;
+    }
+
+    /**
+     * @brief Query static robot model (URDF-derived via RBDL on the motion stack).
+     * RPC JSON nests model under "robot_model". Use booster::robot::RobotModelFromDeviceInfo(model, info)
+     * (see device_info_parser.hpp).
+     *
+     * @param[out] info kind_ is kRobotModel; json_ holds RPC body (key "robot_model").
+     * @return 0 if success, otherwise error code
+     */
+    int32_t GetRobotModel(DeviceInfo &info) {
+        std::string param{};
+        Response resp;
+        int32_t ret =
+            SendApiRequestWithResponse(LocoApiId::kGetRobotModel, param, resp);
+        if (ret != 0) {
+            return ret;
+        }
+        nlohmann::json body_json = nlohmann::json::parse(resp.GetBody());
+        info.FromJson(body_json);
+        info.kind_ = DeviceInfoKind::kRobotModel;
+        return ret;
+    }
+
+    /**
      * @brief Move robot
      *
      * @param vx linear velocity in x direction, unit: m/s
@@ -164,6 +225,22 @@ public:
         RotateHeadParameter head_ctrl(pitch, yaw);
         std::string param = head_ctrl.ToJson().dump();
         return SendApiRequest(LocoApiId::kRotateHead, param);
+    }
+
+    /**
+     * @brief Robot rotates its head to target position within specific time
+     *
+     * @param pitch target pitch angle, unit: rad
+     * @param yaw target yaw angle, unit: rad
+     * @param time_millis duration to reach the target, unit: ms
+     *
+     * @return 0 if success, otherwise return error code
+     */
+
+    int32_t RotateHeadWithTime(float pitch, float yaw, int time_millis) {
+        RotateHeadWithTimeParameter head_ctrl(pitch, yaw, time_millis);
+        std::string param = head_ctrl.ToJson().dump();
+        return SendApiRequest(LocoApiId::kRotateHeadWithTime, param);
     }
 
     /**
@@ -206,8 +283,10 @@ public:
      *
      * @return 0 if success, otherwise return error code
      */
-    int32_t GetUp() {
-        return SendApiRequest(LocoApiId::kGetUp, "");
+    int32_t GetUp(GetUpVersion version = GetUpVersion::kV1) {
+        GetUpParameter param(version);
+        std::string json = param.ToJson().dump();
+        return SendApiRequest(LocoApiId::kGetUp, json);
     }
 
     /**
@@ -215,8 +294,8 @@ public:
      *
      * @return 0 if success, otherwise return error code
      */
-    int32_t GetUpWithMode(booster::robot::RobotMode mode) {
-        GetUpWithModeParameter param(mode);
+    int32_t GetUpWithMode(booster::robot::RobotMode mode, GetUpVersion version = GetUpVersion::kV1) {
+        GetUpWithModeParameter param(mode, version);
         std::string json = param.ToJson().dump();
         return SendApiRequest(LocoApiId::kGetUpWithMode, json);
     }

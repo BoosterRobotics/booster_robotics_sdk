@@ -19,6 +19,9 @@ static const std::string kTopicProneBodyControlStatus = "rt/prone_body_control_s
 static const std::string kTopicRobotReplayTrajID = "rt/robot_replay_traj_id";
 static const std::string kTopicRobocupBehaviorStatus = "rt/robocup_behavior_status";
 static const std::string kTopicKickReference = "rt/kick_ball";
+static const std::string kTopicRosOdometer = "rt/odom";
+static const std::string kTopicRosImu = "rt/imu/data";
+static const std::string kTopicRosJointStates = "rt/joint_states";
 
 // TODO(@wuyuanye): 按照结构图，把电机的索引完善
 enum class JointIndex {

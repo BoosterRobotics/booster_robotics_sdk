@@ -1,6 +1,8 @@
 #ifndef BOOSTER_ROBOTICS_SDK_X5_CAMERA_API_CONST_HPP
 #define BOOSTER_ROBOTICS_SDK_X5_CAMERA_API_CONST_HPP
 
+#include <string>
+
 namespace booster {
 namespace robot {
 namespace x5_camera {

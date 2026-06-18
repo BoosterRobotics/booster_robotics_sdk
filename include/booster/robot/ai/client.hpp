@@ -6,8 +6,6 @@
 
 #include "api.hpp"
 
-using namespace booster::robot;
-
 namespace booster {
 namespace robot {
 

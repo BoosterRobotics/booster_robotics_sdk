@@ -6,8 +6,6 @@
 
 #include "light_control_api.hpp"
 
-using namespace booster::robot;
-
 namespace booster {
 namespace robot {
 namespace light {
@@ -51,6 +49,12 @@ public:
         SetLEDLightColorParameter set_color(r, g, b);
         std::string param = set_color.ToJson().dump();
         return SendApiRequest(LightApiId::kSetLEDLightColor, param);
+    }
+
+    int32_t SetLEDLightColors(const std::vector<SetLEDLightColorParameter> &colors) {
+        SetLEDLightColorsParameter set_colors(colors);
+        std::string param = set_colors.ToJson().dump();
+        return SendApiRequest(LightApiId::kSetLEDLightColors, param);
     }
 
     /**
