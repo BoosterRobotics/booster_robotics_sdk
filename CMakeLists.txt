@@ -18,6 +18,7 @@ link_libraries(booster_robotics_sdk.a fastrtps fastcdr libfoonathan_memory-0.7.3
 add_executable(b1_loco_example_client example/high_level/b1_loco_example_client.cpp)
 add_executable(b1_arm_sdk_example_client example/high_level/b1_arm_sdk_example.cpp)
 add_executable(b1_7dof_arm_sdk_example_client example/high_level/b1_7dof_arm_sdk_example.cpp)
+add_executable(visual_kick_no_ros example/high_level/visual_kick_no_ros.cpp)
 add_executable(b1_low_level_publisher example/low_level/low_level_publisher.cpp)
 add_executable(b1_low_level_subscriber example/low_level/low_level_subscriber.cpp)
 add_executable(low_level_hand_data_subscriber example/low_level/low_level_hand_data_subscriber.cpp)
@@ -61,4 +62,3 @@ if(BUILD_PYTHON_BINDING)
     install(TARGETS booster_robotics_sdk_python LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES})
     install(FILES ${CMAKE_SOURCE_DIR}/build/booster_robotics_sdk_python.pyi DESTINATION ${PYTHON_SITE_PACKAGES})    
 endif()
-
