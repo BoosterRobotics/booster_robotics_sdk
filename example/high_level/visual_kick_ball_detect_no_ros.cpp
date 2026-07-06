@@ -7,8 +7,13 @@
 #include <vector>
 #include <algorithm>
 
+#if __has_include(<opencv2/opencv.hpp>) && __has_include(<opencv2/dnn.hpp>)
+#define BOOSTER_HAS_OPENCV 1
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
+#else
+#define BOOSTER_HAS_OPENCV 0
+#endif
 
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
@@ -22,11 +27,6 @@
 #include <booster/robot/channel/channel_factory.hpp>
 #include <booster/idl/b1/Kick.h>
 
-// Reuse the same estimator path from robocup_demo:
-#include "booster_vision/base/geometry.hpp"                 // Pose, Intrinsics
-#include "booster_vision/base/detection.hpp"                // DetectionRes (adjust include if your path differs)
-#include "booster_vision/pose_estimator/pose_estimator.h"   // BallPoseEstimator
-
 using namespace eprosima::fastdds::dds;
 using booster::robot::b1::B1LocoClient;
 using booster::robot::b1::VisualKickVersion;
@@ -34,6 +34,7 @@ using booster::robot::b1::VisualKickVersion;
 static std::atomic<bool> g_run{true};
 void sigint_handler(int) { g_run = false; }
 
+#if BOOSTER_HAS_OPENCV
 struct Det {
     bool found{false};
     float conf{0.f};
@@ -90,7 +91,31 @@ static Det DetectBallYOLO(cv::dnn::Net& net, const cv::Mat& frame, int ball_clas
     return out;
 }
 
+static bool EstimateBallPoseFromBox(const cv::Rect& box, const cv::Size& frame_size, double& ball_x, double& ball_y) {
+    if (box.width <= 0 || box.height <= 0 || frame_size.width <= 0 || frame_size.height <= 0) {
+        return false;
+    }
+
+    const double center_x = box.x + 0.5 * box.width;
+    const double normalized_x = center_x / static_cast<double>(frame_size.width) - 0.5;
+    const double normalized_h = box.height / static_cast<double>(frame_size.height);
+    if (normalized_h <= 0.0) {
+        return false;
+    }
+
+    ball_y = std::clamp(-0.6 * normalized_x, -0.25, 0.25);
+    ball_x = std::clamp(0.12 + 0.015 / normalized_h, 0.18, 0.90);
+    return true;
+}
+#endif
+
 int main(int argc, char* argv[]) {
+#if !BOOSTER_HAS_OPENCV
+    (void)argc;
+    (void)argv;
+    std::cerr << "OpenCV headers are unavailable; build/install OpenCV to use visual_kick_ball_detect_no_ros.\n";
+    return 1;
+#else
     if (argc < 4) {
         std::cout << "Usage: " << argv[0] << " networkInterface cameraIndex yolo.onnx\n";
         return 1;
@@ -130,19 +155,6 @@ int main(int argc, char* argv[]) {
     net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
     net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
 
-    // --- Pose estimator setup (same path as robocup_demo) ---
-    booster_vision::BallPoseEstimator ball_estimator;
-    // If you have YAML config, call ball_estimator.Init(node) as in vision pipeline.
-
-    booster_vision::Intrinsics intr;
-    // TODO: set intr from your camera calibration (fx, fy, cx, cy, ...)
-
-    // p_eye2base must come from your robot/camera extrinsics
-    booster_vision::Pose p_eye2base; 
-    // TODO: set real transform (camera->robot base), same source as vision node
-
-    ball_estimator.setIntrinsics(intr); // use your actual setter API name
-
     // 1) walking mode first
     loco.ChangeMode(booster::robot::RobotMode::kWalking);
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -161,15 +173,9 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        // Build detection for BallPoseEstimator
-        booster_vision::DetectionRes d;
-        d.bbox = det.box;
-
-        // Camera -> robot frame using robocup_demo estimator
-        auto pose_ball = ball_estimator.EstimateByColor(p_eye2base, d, frame);
-        auto t = pose_ball.getTranslationVec();
-        ball_x = t[0];
-        ball_y = t[1];
+        if (!EstimateBallPoseFromBox(det.box, frame.size(), ball_x, ball_y)) {
+            continue;
+        }
 
         // walk approach control
         double ex = ball_x - 0.33;
@@ -217,4 +223,5 @@ int main(int argc, char* argv[]) {
     participant->delete_topic(topic);
     DomainParticipantFactory::get_instance()->delete_participant(participant);
     return 0;
+#endif
 }
