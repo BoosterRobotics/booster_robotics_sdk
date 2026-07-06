@@ -43,7 +43,13 @@ if(NOT TINYXML2_LIB)
     # Fall back to the versioned shared object directly
     file(GLOB _tinyxml2_candidates
         "/usr/lib/${CMAKE_SYSTEM_PROCESSOR}-linux-gnu/libtinyxml2.so*")
-    list(GET _tinyxml2_candidates 0 TINYXML2_LIB)
+    if(_tinyxml2_candidates)
+        list(GET _tinyxml2_candidates 0 TINYXML2_LIB)
+    else()
+        message(FATAL_ERROR
+            "libtinyxml2 not found. Install libtinyxml2-dev (or equivalent) "
+            "to satisfy the transitive dependency of libfastrtps.")
+    endif()
 endif()
 message(STATUS "tinyxml2: ${TINYXML2_LIB}")
 
