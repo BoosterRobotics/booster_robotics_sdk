@@ -26,9 +26,13 @@ static std::atomic<bool> g_run{true};
 
 void sigint_handler(int) { g_run = false; }
 
-int main() {
-    std::signal(SIGINT, sigint_handler);
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " networkInterface\n";
+        return 1;
+    }
 
+    std::signal(SIGINT, sigint_handler);
     // ---- FastDDS setup ----
     DomainParticipantQos pqos;
     pqos.name("visual_kick_no_ros_participant");
