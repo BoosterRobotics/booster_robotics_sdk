@@ -91,7 +91,17 @@ static Det DetectBallYOLO(cv::dnn::Net& net, const cv::Mat& frame, int ball_clas
     return out;
 }
 
+// Estimates ball position in robot frame from image-space bounding box only.
+// ball_x and ball_y are approximate meters in front/lateral directions and are
+// intended for short-range approach control when no calibrated geometry is available.
 static bool EstimateBallPoseFromBox(const cv::Rect& box, const cv::Size& frame_size, double& ball_x, double& ball_y) {
+    constexpr double kYawGainFromPixels = 0.6;
+    constexpr double kMaxLateralMeters = 0.25;
+    constexpr double kBaseForwardMeters = 0.12;
+    constexpr double kForwardScaleFromHeight = 0.015;
+    constexpr double kMinForwardMeters = 0.18;
+    constexpr double kMaxForwardMeters = 0.90;
+
     if (box.width <= 0 || box.height <= 0 || frame_size.width <= 0 || frame_size.height <= 0) {
         return false;
     }
@@ -103,8 +113,8 @@ static bool EstimateBallPoseFromBox(const cv::Rect& box, const cv::Size& frame_s
         return false;
     }
 
-    ball_y = std::clamp(-0.6 * normalized_x, -0.25, 0.25);
-    ball_x = std::clamp(0.12 + 0.015 / normalized_h, 0.18, 0.90);
+    ball_y = std::clamp(-kYawGainFromPixels * normalized_x, -kMaxLateralMeters, kMaxLateralMeters);
+    ball_x = std::clamp(kBaseForwardMeters + kForwardScaleFromHeight / normalized_h, kMinForwardMeters, kMaxForwardMeters);
     return true;
 }
 #endif
