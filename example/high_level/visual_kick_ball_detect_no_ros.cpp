@@ -95,10 +95,10 @@ static Det DetectBallYOLO(cv::dnn::Net& net, const cv::Mat& frame, int ball_clas
 // ball_x and ball_y are approximate meters in front/lateral directions and are
 // intended for short-range approach control when no calibrated geometry is available.
 static bool EstimateBallPoseFromBox(const cv::Rect& box, const cv::Size& frame_size, double& ball_x, double& ball_y) {
-    constexpr double kYawGainFromPixels = 0.6;
+    constexpr double kYawGainFromPixels = 0.6;         // normalized horizontal image offset -> lateral meter gain
     constexpr double kMaxLateralMeters = 0.25;
-    constexpr double kBaseForwardMeters = 0.12;
-    constexpr double kForwardScaleFromHeight = 0.015;
+    constexpr double kBaseForwardMeters = 0.12;        // minimum forward-distance bias even for large detections
+    constexpr double kForwardScaleFromHeight = 0.015;  // inverse-size scaling: larger box height means closer ball
     constexpr double kMinForwardMeters = 0.18;
     constexpr double kMaxForwardMeters = 0.90;
 
