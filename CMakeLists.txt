@@ -65,6 +65,26 @@ target_include_directories(visual_kick_no_ros PRIVATE "${CMAKE_SOURCE_DIR}/inclu
 target_link_directories(visual_kick_no_ros PRIVATE "${SDK_LIB_DIR}" "${THIRD_PARTY_LIB}")
 target_link_libraries(visual_kick_no_ros booster_robotics_sdk.a fastrtps fastcdr libfoonathan_memory-0.7.3.a "${TINYXML2_LIB}")
 
+# visual_kick_ball_detect_dds_camera – reads RGB frames directly from DDS,
+# detects the ball with YOLO (optional) + colour-based HSV fallback, then kicks.
+find_package(OpenCV REQUIRED COMPONENTS core imgproc dnn highgui imgcodecs)
+add_executable(visual_kick_ball_detect_dds_camera
+    example/high_level/visual_kick_ball_detect_dds_camera.cpp)
+target_include_directories(visual_kick_ball_detect_dds_camera PRIVATE
+    "${CMAKE_SOURCE_DIR}/include"
+    "${THIRD_PARTY_INC}"
+    ${OpenCV_INCLUDE_DIRS})
+target_link_directories(visual_kick_ball_detect_dds_camera PRIVATE
+    "${SDK_LIB_DIR}"
+    "${THIRD_PARTY_LIB}")
+target_link_libraries(visual_kick_ball_detect_dds_camera
+    booster_robotics_sdk.a
+    fastrtps
+    fastcdr
+    libfoonathan_memory-0.7.3.a
+    "${TINYXML2_LIB}"
+    ${OpenCV_LIBS})
+
 add_executable(b1_low_level_publisher example/low_level/low_level_publisher.cpp)
 add_executable(b1_low_level_subscriber example/low_level/low_level_subscriber.cpp)
 add_executable(low_level_hand_data_subscriber example/low_level/low_level_hand_data_subscriber.cpp)
