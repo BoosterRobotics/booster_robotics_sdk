@@ -43,9 +43,9 @@ enum class State {
     kKick
 };
 
-static constexpr int kPhaseInitDelayMs = 2000;      // allow discovery after each Init()
-static constexpr int kPhaseServiceDelayMs = 1500;   // allow vision service endpoints to settle
-static constexpr int kPhaseModeDelayMs = 1000;      // allow mode changes to take effect
+static constexpr int kPhaseInitDelayMs = 2000;      // conservative discovery delay after each Init()
+static constexpr int kPhaseServiceDelayMs = 1500;   // conservative settle time after StartVisionService()
+static constexpr int kPhaseModeDelayMs = 1000;      // conservative settle time after ChangeMode()
 static constexpr int kStartupPollMs = 120;
 static constexpr int kSearchPollMs = 120;
 static constexpr int kActivePollMs = 60;
@@ -214,8 +214,11 @@ class KickReferencePublisher {
 public:
     KickReferencePublisher() : type_(new brain::msg::Kick()) {}
 
-    ~KickReferencePublisher() {
-        Cleanup();
+    ~KickReferencePublisher() noexcept {
+        try {
+            Cleanup();
+        } catch (...) {
+        }
     }
 
     bool Create() {
