@@ -1,271 +1,106 @@
-/**
- * visual_pass_ball_to_person.cpp
- *
- * Autonomous "find ball → find person → pass" behavior using the Booster B1
- * SDK VisionClient (Path 1 – on-board detection, no external camera calibration
- * or ONNX model required).
- *
- * State machine
- * ─────────────
- *   SEARCH_BALL   – Robot stands still and sweeps its head left/right with
- *                   RotateHeadWithDirection().  When the on-board vision
- *                   service reports a ball the robot centres its head and
- *                   transitions to APPROACH_BALL.  After a full head sweep
- *                   with no result the body slowly rotates to widen the search.
- *
- *   APPROACH_BALL – Robot walks toward the ball (proportional velocity
- *                   controller) until the ball is within kicking distance
- *                   (~0.22–0.45 m forward, <0.05 m lateral).  If the ball is
- *                   lost the robot returns to SEARCH_BALL.
- *
- *   SEARCH_PERSON – Robot stops, centres its head, then sweeps again looking
- *                   for a face/person.  The *first* person detected during the
- *                   sweep is locked in – subsequent people are ignored.  If no
- *                   person is found after a full head sweep the body rotates
- *                   slightly to widen the field of view.
- *
- *   ALIGN_BODY    – If the locked-in person is significantly to the side
- *                   (|angle| > kAlignYawThresh) the robot yaws its body toward
- *                   the person so the kick direction is roughly correct.
- *
- *   KICK          – Switches to kSoccer mode, triggers VisualKick(kV2), and
- *                   publishes the kick-reference message with goal coordinates
- *                   set to the person's robot-frame position.  Kick power is
- *                   scaled linearly with the person's distance (clipped to
- *                   [kPowerMin, kPowerMax]).
- *
- * Robustness
- * ──────────
- *   RPC calls are treated as transient-failure prone.  The program retries
- *   briefly with backoff, fails softly on repeated timeout/failure, and returns
- *   to a safe state (stop motion, centre head, best-effort walking mode)
- *   instead of treating every timeout as fatal.
- *
- * Usage:
- *   ./visual_pass_ball_to_person  <networkInterface>
- * Example:
- *   ./visual_pass_ball_to_person  eth0
- */
-
-/**
-*START program
-
-*Initialize communication, locomotion, and vision
-*Start vision service with brief retries/backoff
-*IF vision start keeps failing THEN
-*    enter safe state and exit
-*ENDIF
-*Set robot mode to WALKING with brief retries/backoff
-*IF mode set keeps failing THEN
-*    enter safe state and exit
-*ENDIF
-
-*state = SEARCH_BALL
-*person_locked = false
-*run = true
-
-*WHILE run = true
-
-*    Get current detections from vision with brief retries/backoff
-*    IF detection request times out repeatedly THEN
-*        fail softly:
-*            if in approach/alignment, stop and return to SEARCH_BALL
-*            otherwise continue sweeping/searching
-*        wait 40 ms
-*        continue loop
-*    ENDIF
-*
-*    Find best ball
-*    Find best person
-*
-*    IF state = SEARCH_BALL THEN
-*        IF ball is detected THEN
-*            save ball position
-*            center head
-*            state = APPROACH_BALL
-*        ELSE
-*            sweep head left/right
-*            IF one full sweep is completed THEN
-*                rotate body slightly
-*            ENDIF
-*        ENDIF
-*    ENDIF
-*
-*    IF state = APPROACH_BALL THEN
-*        IF ball is not detected THEN
-*            stop walking
-*            state = SEARCH_BALL
-*        ELSE
-*            update ball position
-*            walk toward ball
-*
-*            IF ball is within kicking range AND laterally aligned THEN
-*                stop walking
-*                center head
-*                state = SEARCH_PERSON
-*            ENDIF
-*        ENDIF
-*    ENDIF
-*
-*    IF state = SEARCH_PERSON THEN
-*        IF person is detected THEN
-*            lock this person position
-*            center head
-*            state = ALIGN_BODY
-*        ELSE
-*            sweep head left/right
-*            IF one full sweep is completed THEN
-*                rotate body slightly
-*            ENDIF
-*        ENDIF
-*    ENDIF
-*
-*    IF state = ALIGN_BODY THEN
-*        compute angle to locked person
-*
-*        IF person angle is large THEN
-*            rotate body toward person
-*            refresh person position if seen again (with retries)
-*        ELSE
-*            stop moving
-*            state = KICK
-*        ENDIF
-*    ENDIF
-*
-*    IF state = KICK THEN
-*        stop moving
-*        compute kick power from person distance
-*        switch robot to SOCCER mode with retries
-*
-*        IF mode switch fails THEN
-*            enter safe state
-*            run = false
-*        ELSE
-*            start visual kick with retries
-*            IF kick starts successfully THEN
-*                publish kick reference for fixed number of frames
-*                stop visual kick (best effort)
-*            ELSE
-*                enter safe state
-*            ENDIF
-*            run = false
-*        ENDIF
-*    ENDIF
-*
-*    wait 40 ms
-*
-*END WHILE
-*
-*Stop robot
-*Stop vision service (best effort)
-*Clean up and exit
-*
-*END program
-**/
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
-#include <functional>
 
-#include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
-#include <fastdds/dds/publisher/Publisher.hpp>
+#include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/publisher/DataWriter.hpp>
+#include <fastdds/dds/publisher/Publisher.hpp>
 #include <fastdds/dds/topic/Topic.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
 
-#include <booster/robot/b1/b1_loco_client.hpp>
+#include <booster/idl/b1/Kick.h>
 #include <booster/robot/b1/b1_api_const.hpp>
+#include <booster/robot/b1/b1_loco_client.hpp>
 #include <booster/robot/channel/channel_factory.hpp>
 #include <booster/robot/vision/vision_client.hpp>
-#include <booster/idl/b1/Kick.h>
-#include <fastdds/dds/publication/DataWriter.hpp>  // for get_publication_matched_status    
 
 using namespace eprosima::fastdds::dds;
+using booster::robot::ChannelFactory;
 using booster::robot::b1::B1LocoClient;
 using booster::robot::b1::VisualKickVersion;
-using booster::robot::ChannelFactory;
-using booster::robot::vision::VisionClient;
 using booster::robot::vision::DetectResults;
+using booster::robot::vision::VisionClient;
 
-// ---------------------------------------------------------------------------
-// Signal handling
-// ---------------------------------------------------------------------------
 static std::atomic<bool> g_run{true};
-void sigint_handler(int) { g_run = false; }
 
-// ---------------------------------------------------------------------------
-// Tuning constants
-// ---------------------------------------------------------------------------
+static void sigint_handler(int) {
+    g_run = false;
+}
 
-// Approach: stop walking when the ball is within this forward window (metres).
-static constexpr float kBallReadyDistMin = 0.22f;
-static constexpr float kBallReadyDistMax = 0.45f;
-// Maximum lateral offset at which the robot considers itself aligned to the ball.
-static constexpr float kBallAlignY       = 0.05f;
+enum class State {
+    kSearchBall,
+    kApproachBall,
+    kSearchPerson,
+    kAlignBody,
+    kKick
+};
 
-// Head sweep: number of RotateHeadWithDirection steps in each direction before
-// reversing.  Each step is separated by a 40 ms detection poll, so
-// kSweepStepsHalf * 40 ms = time to sweep from centre to one extreme.
+static constexpr int kPhaseInitDelayMs = 2000;
+static constexpr int kPhaseServiceDelayMs = 1500;
+static constexpr int kPhaseModeDelayMs = 1000;
+static constexpr int kStartupPollMs = 120;
+static constexpr int kSearchPollMs = 120;
+static constexpr int kActivePollMs = 60;
+static constexpr int kRpcMaxAttempts = 4;
+static constexpr int kRpcBackoffBaseMs = 250;
+static constexpr int kPassiveValidationCycles = 5;
+static constexpr int kPassiveValidationFailureLimit = 2;
+static constexpr int kActivePollFailureLimit = 2;
+static constexpr int kTargetLossLimit = 3;
 static constexpr int kSweepStepsHalf = 20;
-
-// Body yaw alignment: rotate the body if the person is farther than this angle
-// away from straight-ahead (radians).
-static constexpr float kAlignYawThresh = 0.35f;   // ~20 deg
-
-// Kick power: linearly mapped from kPowerMin (person very close) to kPowerMax
-// (person at kPowerDist metres away).
-static constexpr float kPowerMin  = 0.30f;
-static constexpr float kPowerMax  = 0.90f;
-static constexpr float kPowerDist = 4.0f;   // full power at this distance (m)
-
-// Number of Kick reference frames to publish (~660 ms at 33 ms each).
 static constexpr int kKickFrames = 20;
 
-// Seconds to wait after Init() before sending RPC requests so the robot's
-// services have time to become ready.
-static constexpr int kRpcReadyDelaySecs = 5;
+static constexpr float kBallReadyDistMin = 0.22f;
+static constexpr float kBallReadyDistMax = 0.45f;
+static constexpr float kBallAlignY = 0.05f;
+static constexpr float kAlignYawThresh = 0.35f;
+static constexpr float kMinPersonFwdDist = 0.10f;
+static constexpr float kPowerMin = 0.30f;
+static constexpr float kPowerMax = 0.90f;
+static constexpr float kPowerDist = 4.0f;
 
-// Minimum forward distance used in the atan2 denominator when computing the
-// angle to the person.  Prevents near-zero division when the person is almost
-// directly to the side.
-static constexpr float kMinPersonFwdDist = 0.1f;
-
-// RPC retry policy (brief retries + linear backoff).
-static constexpr int kRpcMaxAttempts = 5;           // total attempts
-static constexpr int kRpcBackoffBaseMs = 300;       // 300, 600, 900, 1200 ms between retries
-
-// ---------------------------------------------------------------------------
-// Detection helpers
-// ---------------------------------------------------------------------------
-
-/** True when the detected object tag represents a ball. */
-static bool IsBall(const std::string &tag) {
+static bool IsBall(const std::string& tag) {
     return tag == "ball" || tag == "Ball";
 }
 
-/** True when the detected object tag represents a person or face. */
-static bool IsPerson(const std::string &tag) {
-    return tag == "face"   || tag == "Face"   ||
+static bool IsPerson(const std::string& tag) {
+    return tag == "face" || tag == "Face" ||
            tag == "person" || tag == "Person";
 }
 
-/** 2-D Euclidean distance in the robot XY plane (metres). */
-static float Dist2D(const std::vector<float> &pos) {
-    if (pos.size() < 2) return 9999.f;
+static bool HasRobotFrameXY(const DetectResults& obj) {
+    return obj.position_.size() >= 2;
+}
+
+static float Dist2D(const std::vector<float>& pos) {
+    if (pos.size() < 2) {
+        return 9999.0f;
+    }
     return std::hypot(pos[0], pos[1]);
 }
 
-/** Generic brief retry helper for RPC-like calls; success when fn() returns 0. */
-static int RetryRpc(const std::string &name,
-                    const std::function<int(void)> &fn,
+static void SleepMs(int ms) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+static int PollDelayMsForState(State state) {
+    return (state == State::kApproachBall || state == State::kAlignBody)
+               ? kActivePollMs
+               : kSearchPollMs;
+}
+
+// The SDK methods used here return int32_t in this repository. If a future SDK
+// changes one of them to void, wrap that call separately instead of using RetryRpc.
+static int RetryRpc(const std::string& name,
+                    const std::function<int(void)>& fn,
                     int max_attempts = kRpcMaxAttempts) {
     int rc = -1;
     for (int attempt = 1; attempt <= max_attempts && g_run.load(); ++attempt) {
@@ -283,7 +118,7 @@ static int RetryRpc(const std::string &name,
             std::cerr << "[rpc] " << name << " failed rc=" << rc
                       << " (attempt " << attempt << "/" << max_attempts
                       << "), retrying in " << backoff_ms << " ms\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+            SleepMs(backoff_ms);
         }
     }
 
@@ -292,57 +127,191 @@ static int RetryRpc(const std::string &name,
     return rc;
 }
 
-/** Retry wrapper for vision detection polling. */
-static bool RetryGetDetectionObject(VisionClient &vc,
-                                    std::vector<DetectResults> &objs,
+static bool RetryGetDetectionObject(VisionClient& vision,
+                                    std::vector<DetectResults>& objects,
                                     float ratio,
-                                    int max_attempts = kRpcMaxAttempts) {
+                                    int max_attempts = 2) {
+    int rc = -1;
     for (int attempt = 1; attempt <= max_attempts && g_run.load(); ++attempt) {
-        objs.clear();
-        try {
-            vc.GetDetectionObject(objs, ratio);
+        objects.clear();
+        rc = vision.GetDetectionObject(objects, ratio);
+        if (rc == 0) {
             return true;
-        } catch (const std::exception &e) {
-            if (attempt < max_attempts) {
-                const int backoff_ms = kRpcBackoffBaseMs * attempt;
-                std::cerr << "[vision] GetDetectionObject exception: " << e.what()
-                          << " (attempt " << attempt << "/" << max_attempts
-                          << "), retrying in " << backoff_ms << " ms\n";
-                std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
-            } else {
-                std::cerr << "[vision] GetDetectionObject failed after retries: "
-                          << e.what() << "\n";
-            }
-        } catch (...) {
-            if (attempt < max_attempts) {
-                const int backoff_ms = kRpcBackoffBaseMs * attempt;
-                std::cerr << "[vision] GetDetectionObject unknown failure"
-                          << " (attempt " << attempt << "/" << max_attempts
-                          << "), retrying in " << backoff_ms << " ms\n";
-                std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
-            } else {
-                std::cerr << "[vision] GetDetectionObject failed after retries"
-                          << " (unknown error)\n";
-            }
+        }
+
+        if (attempt < max_attempts) {
+            const int backoff_ms = kRpcBackoffBaseMs * attempt;
+            std::cerr << "[vision] GetDetectionObject failed rc=" << rc
+                      << " (attempt " << attempt << "/" << max_attempts
+                      << "), retrying in " << backoff_ms << " ms\n";
+            SleepMs(backoff_ms);
         }
     }
+
+    std::cerr << "[vision] GetDetectionObject failed after " << max_attempts
+              << " attempts, rc=" << rc << "\n";
     return false;
 }
 
-/** Safe state: stop robot motion and best-effort return to walking mode. */
-static void EnterSafeState(B1LocoClient &loco) {
-    std::cerr << "[safe] Entering safe state: stop motion, centre head, walking mode.\n";
-    loco.Move(0.f, 0.f, 0.f);
-    loco.RotateHead(0.f, 0.f);
-    (void)RetryRpc("ChangeMode(kWalking)", [&]() -> int {
-        return loco.ChangeMode(booster::robot::RobotMode::kWalking);
-    }, /*max_attempts=*/2);
+static void StopMotionAndCenterHead(B1LocoClient& loco) {
+    (void)loco.Move(0.0f, 0.0f, 0.0f);
+    (void)loco.RotateHead(0.0f, 0.0f);
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-int main(int argc, char *argv[]) {
+static void EnterSafeState(B1LocoClient& loco) {
+    std::cerr << "[safe] Stop motion, centre head, and return to walking mode.\n";
+    StopMotionAndCenterHead(loco);
+    (void)RetryRpc("ChangeMode(kWalking)", [&]() -> int {
+        return loco.ChangeMode(booster::robot::RobotMode::kWalking);
+    }, 2);
+}
+
+static void RecoverToSearchBall(B1LocoClient& loco,
+                                State& state,
+                                int& sweep_dir,
+                                int& sweep_count,
+                                int& ball_lost_count,
+                                int& person_lost_count,
+                                std::vector<float>& person_pos,
+                                const std::string& reason) {
+    std::cerr << "[recover] " << reason << " -> SEARCH_BALL\n";
+    StopMotionAndCenterHead(loco);
+    person_pos.clear();
+    sweep_dir = 1;
+    sweep_count = 0;
+    ball_lost_count = 0;
+    person_lost_count = 0;
+    state = State::kSearchBall;
+}
+
+static bool PassiveVisionValidation(VisionClient& vision) {
+    std::cout << "[vision] Passive validation: polling without motion.\n";
+    int failure_count = 0;
+    for (int cycle = 0; cycle < kPassiveValidationCycles && g_run.load(); ++cycle) {
+        std::vector<DetectResults> objects;
+        if (RetryGetDetectionObject(vision, objects, 1.0f, 2)) {
+            failure_count = 0;
+        } else {
+            ++failure_count;
+            if (failure_count >= kPassiveValidationFailureLimit) {
+                std::cerr << "[vision] Passive validation failed repeatedly.\n";
+                return false;
+            }
+        }
+        SleepMs(kStartupPollMs);
+    }
+    return g_run.load();
+}
+
+class KickReferencePublisher {
+public:
+    KickReferencePublisher() : type_(new brain::msg::Kick()) {}
+
+    ~KickReferencePublisher() {
+        Cleanup();
+    }
+
+    bool Create() {
+        DomainParticipantQos participant_qos;
+        participant_qos.name("visual_pass_ball_to_person_kick");
+        participant_ = DomainParticipantFactory::get_instance()->create_participant(0, participant_qos);
+        if (!participant_) {
+            std::cerr << "[dds] Failed to create kick participant.\n";
+            return false;
+        }
+
+        type_.register_type(participant_);
+
+        topic_ = participant_->create_topic(
+            booster::robot::b1::kTopicKickReference,
+            type_.get_type_name(),
+            TOPIC_QOS_DEFAULT);
+        if (!topic_) {
+            std::cerr << "[dds] Failed to create kick topic.\n";
+            return false;
+        }
+
+        publisher_ = participant_->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
+        if (!publisher_) {
+            std::cerr << "[dds] Failed to create kick publisher.\n";
+            return false;
+        }
+
+        writer_ = publisher_->create_datawriter(topic_, DATAWRITER_QOS_DEFAULT, nullptr);
+        if (!writer_) {
+            std::cerr << "[dds] Failed to create kick writer.\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool Write(double ball_x,
+               double ball_y,
+               double goal_x,
+               double goal_y,
+               double power) {
+        if (!writer_) {
+            return false;
+        }
+
+        brain::msg::Kick msg;
+        msg.x(ball_x);
+        msg.y(ball_y);
+        msg.goal_x(goal_x);
+        msg.goal_y(goal_y);
+        msg.power(power);
+        return writer_->write(&msg) == ReturnCode_t::RETCODE_OK;
+    }
+
+private:
+    void Cleanup() {
+        if (publisher_ && writer_) {
+            publisher_->delete_datawriter(writer_);
+            writer_ = nullptr;
+        }
+        if (participant_ && publisher_) {
+            participant_->delete_publisher(publisher_);
+            publisher_ = nullptr;
+        }
+        if (participant_ && topic_) {
+            participant_->delete_topic(topic_);
+            topic_ = nullptr;
+        }
+        if (participant_) {
+            DomainParticipantFactory::get_instance()->delete_participant(participant_);
+            participant_ = nullptr;
+        }
+    }
+
+    DomainParticipant* participant_{nullptr};
+    Topic* topic_{nullptr};
+    Publisher* publisher_{nullptr};
+    DataWriter* writer_{nullptr};
+    TypeSupport type_;
+};
+
+static bool PublishKickFrames(float ball_x,
+                              float ball_y,
+                              const std::vector<float>& person_pos,
+                              float power) {
+    KickReferencePublisher publisher;
+    if (!publisher.Create()) {
+        return false;
+    }
+
+    for (int frame = 0; frame < kKickFrames && g_run.load(); ++frame) {
+        if (!publisher.Write(ball_x, ball_y, person_pos[0], person_pos[1], power)) {
+            std::cerr << "[dds] Failed to publish kick frame " << frame << ".\n";
+            return false;
+        }
+        SleepMs(33);
+    }
+
+    return true;
+}
+
+int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Usage: " << argv[0] << " <networkInterface>\n"
                   << "Example: " << argv[0] << " eth0\n";
@@ -351,347 +320,270 @@ int main(int argc, char *argv[]) {
 
     std::signal(SIGINT, sigint_handler);
 
-    const std::string net_if = argv[1];
+    const std::string network_interface = argv[1];
 
-    // -----------------------------------------------------------------------
-    // FastDDS publisher – kick reference topic
-    // -----------------------------------------------------------------------
-    DomainParticipantQos pqos;
-    pqos.name("visual_pass_ball_participant");
-    auto *participant =
-        DomainParticipantFactory::get_instance()->create_participant(0, pqos);
-    if (!participant) {
-        std::cerr << "[dds] Failed to create participant\n";
-        return 1;
-    }
-
-    TypeSupport kick_type(new brain::msg::Kick());
-    kick_type.register_type(participant);
-
-    Topic *topic = participant->create_topic(
-        booster::robot::b1::kTopicKickReference,
-        kick_type.get_type_name(), TOPIC_QOS_DEFAULT);
-    Publisher  *pub    = participant->create_publisher(PUBLISHER_QOS_DEFAULT, nullptr);
-    DataWriter *writer = pub ? pub->create_datawriter(topic, DATAWRITER_QOS_DEFAULT, nullptr)
-                             : nullptr;
-    if (!topic || !pub || !writer) {
-        std::cerr << "[dds] Failed to create kick publisher\n";
-        return 1;
-    }
-
-    // -----------------------------------------------------------------------
-    // Channel factory, locomotion client, and vision client
-    // -----------------------------------------------------------------------
-    ChannelFactory::Instance()->Init(0, net_if);
+    std::cout << "[init] Phase 1: ChannelFactory::Init\n";
+    ChannelFactory::Instance()->Init(0, network_interface);
+    SleepMs(kPhaseInitDelayMs);
 
     B1LocoClient loco;
+    std::cout << "[init] Phase 2: B1LocoClient::Init\n";
     loco.Init();
+    SleepMs(kPhaseInitDelayMs);
 
-    VisionClient vc;
-    vc.Init();
+    VisionClient vision;
+    std::cout << "[init] Phase 3: VisionClient::Init\n";
+    vision.Init();
+    SleepMs(kPhaseInitDelayMs);
 
-    // Allow RPC services to become ready
-    std::this_thread::sleep_for(std::chrono::seconds(kRpcReadyDelaySecs));
-
-    // Start the on-board vision service with position estimation and face
-    // detection both enabled.  Retries briefly before soft failure.
-    int32_t vs_ret = RetryRpc("StartVisionService", [&]() -> int {
-        return vc.StartVisionService(/*enable_position=*/true,
-                                     /*enable_color=*/false,
-                                     /*enable_face_detection=*/true);
-    });
-    if (vs_ret != 0) {
-        std::cerr << "[vision] StartVisionService failed after retries: "
-                  << vs_ret << "\n";
-        EnterSafeState(loco);
-        return 1;
-    }
-    std::cout << "[vision] Vision service started (position + face detection).\n";
-    // Give the vision service a moment to fully initialise before the next RPC.
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
-    // Enter walking mode so Move() and RotateHead() are accepted.
-    if (RetryRpc("ChangeMode(kWalking)", [&]() -> int {
-            return loco.ChangeMode(booster::robot::RobotMode::kWalking);
+    std::cout << "[init] Phase 4: StartVisionService\n";
+    if (RetryRpc("StartVisionService", [&]() -> int {
+            return vision.StartVisionService(
+                /*enable_position=*/true,
+                /*enable_color=*/false,
+                /*enable_face_detection=*/true);
         }) != 0) {
         EnterSafeState(loco);
         return 1;
     }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    SleepMs(kPhaseServiceDelayMs);
 
-    // -----------------------------------------------------------------------
-    // State machine
-    // -----------------------------------------------------------------------
-    enum class State {
-        kSearchBall,
-        kApproachBall,
-        kSearchPerson,
-        kAlignBody,
-        kKick
-    };
+    std::cout << "[init] Phase 5: ChangeMode(kWalking)\n";
+    if (RetryRpc("ChangeMode(kWalking)", [&]() -> int {
+            return loco.ChangeMode(booster::robot::RobotMode::kWalking);
+        }) != 0) {
+        EnterSafeState(loco);
+        (void)RetryRpc("StopVisionService", [&]() -> int {
+            return vision.StopVisionService();
+        }, 2);
+        return 1;
+    }
+    SleepMs(kPhaseModeDelayMs);
+
+    std::cout << "[init] Phase 6: passive vision validation\n";
+    if (!PassiveVisionValidation(vision)) {
+        EnterSafeState(loco);
+        (void)RetryRpc("StopVisionService", [&]() -> int {
+            return vision.StopVisionService();
+        }, 2);
+        return 1;
+    }
+
+    std::cout << "[init] Phase 7: state machine\n";
+
     State state = State::kSearchBall;
-
-    // Locked-in person position (robot frame, metres {x, y, z}).
-    // Set once during kSearchPerson and never overwritten.
     std::vector<float> person_pos;
-
-    // Last known ball position in robot frame (metres).
     float ball_x = 0.35f;
     float ball_y = 0.0f;
+    int sweep_dir = 1;
+    int sweep_count = 0;
+    int detection_rpc_failures = 0;
+    int ball_lost_count = 0;
+    int person_lost_count = 0;
 
-    // Head sweep pitch direction: +1 = left, -1 = right
-    // (matches the pitch_direction convention of RotateHeadWithDirection).
-    int sweep_dir   =  1;
-    int sweep_count =  0;
-
-    std::cout << "[state] SEARCH_BALL – sweeping head to find the ball …\n";
+    std::cout << "[state] SEARCH_BALL\n";
 
     while (g_run.load()) {
-        // ---- Poll detections -----------------------------------------------
-        std::vector<DetectResults> objs;
-        // Use the full image width during search phases so nothing is missed;
-        // tighten the ratio when approaching the ball to reduce false matches.
         const float ratio = (state == State::kApproachBall) ? 0.33f : 1.0f;
-
-        if (!RetryGetDetectionObject(vc, objs, ratio)) {
-            // Soft-fail behavior on repeated timeout/failure:
-            // - if actively moving/aligning, stop and re-search ball
-            // - otherwise continue sweeping/searching
-            std::cerr << "[vision] detection polling unavailable; soft-fail path.\n";
-            if (state == State::kApproachBall || state == State::kAlignBody) {
-                loco.Move(0.f, 0.f, 0.f);
-                sweep_dir = 1; sweep_count = 0;
-                state = State::kSearchBall;
+        std::vector<DetectResults> objects;
+        if (!RetryGetDetectionObject(vision, objects, ratio)) {
+            ++detection_rpc_failures;
+            if (state != State::kSearchBall && state != State::kKick &&
+                detection_rpc_failures >= kActivePollFailureLimit) {
+                RecoverToSearchBall(loco, state, sweep_dir, sweep_count,
+                                    ball_lost_count, person_lost_count,
+                                    person_pos,
+                                    "repeated detection RPC failure during active state");
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(40));
+            SleepMs(PollDelayMsForState(state));
             continue;
         }
+        detection_rpc_failures = 0;
 
-        // Find the highest-confidence ball and person in this frame.
-        const DetectResults *best_ball   = nullptr;
-        const DetectResults *best_person = nullptr;
-        for (const auto &o : objs) {
-            if (IsBall(o.tag_)) {
-                if (!best_ball || o.conf_ > best_ball->conf_)
-                    best_ball = &o;
-            } else if (IsPerson(o.tag_)) {
-                if (!best_person || o.conf_ > best_person->conf_)
-                    best_person = &o;
+        const DetectResults* best_ball = nullptr;
+        const DetectResults* best_person = nullptr;
+        for (const auto& object : objects) {
+            if (IsBall(object.tag_) && HasRobotFrameXY(object)) {
+                if (!best_ball || object.conf_ > best_ball->conf_) {
+                    best_ball = &object;
+                }
+            } else if (IsPerson(object.tag_) && HasRobotFrameXY(object)) {
+                if (!best_person || object.conf_ > best_person->conf_) {
+                    best_person = &object;
+                }
             }
         }
 
-        // ---- State transitions ---------------------------------------------
         switch (state) {
-
-        // --------------------------------------------------------------------
         case State::kSearchBall: {
-            if (best_ball && !best_ball->position_.empty()) {
+            if (best_ball) {
                 ball_x = best_ball->position_[0];
-                ball_y = (best_ball->position_.size() > 1)
-                             ? best_ball->position_[1] : 0.f;
-                std::cout << "[state] Ball found at ("
-                          << ball_x << ", " << ball_y << ") m → APPROACH_BALL\n";
-                // Centre the head before walking so the gait is stable.
-                loco.RotateHead(0.f, 0.f);
-                sweep_dir = 1; sweep_count = 0;
+                ball_y = best_ball->position_[1];
+                StopMotionAndCenterHead(loco);
+                ball_lost_count = 0;
+                person_lost_count = 0;
+                sweep_dir = 1;
+                sweep_count = 0;
                 state = State::kApproachBall;
+                std::cout << "[state] Ball found -> APPROACH_BALL\n";
                 break;
             }
-            // No ball yet – pan the head.
-            loco.RotateHeadWithDirection(sweep_dir, /*yaw_dir=*/0);
+
+            (void)loco.RotateHeadWithDirection(sweep_dir, 0);
             ++sweep_count;
             if (sweep_count >= kSweepStepsHalf * 2) {
-                // Reached the opposite limit; reverse the sweep direction.
-                sweep_dir   = -sweep_dir;
+                sweep_dir = -sweep_dir;
                 sweep_count = 0;
-                // After a complete head sweep with no result, rotate the body
-                // slightly in the same direction to widen the field of view.
-                loco.Move(0.f, 0.f, static_cast<float>(sweep_dir) * 0.25f);
-                std::this_thread::sleep_for(std::chrono::milliseconds(400));
-                loco.Move(0.f, 0.f, 0.f);
+                (void)loco.Move(0.0f, 0.0f, static_cast<float>(sweep_dir) * 0.25f);
+                SleepMs(300);
+                (void)loco.Move(0.0f, 0.0f, 0.0f);
             }
             break;
         }
 
-        // --------------------------------------------------------------------
         case State::kApproachBall: {
-            if (best_ball && !best_ball->position_.empty()) {
-                ball_x = best_ball->position_[0];
-                ball_y = (best_ball->position_.size() > 1)
-                             ? best_ball->position_[1] : 0.f;
-            } else {
-                // Ball is no longer visible – stop and re-search.
-                std::cout << "[state] Ball lost → SEARCH_BALL\n";
-                loco.Move(0.f, 0.f, 0.f);
-                sweep_dir = 1; sweep_count = 0;
-                state = State::kSearchBall;
+            if (!best_ball) {
+                ++ball_lost_count;
+                if (ball_lost_count >= kTargetLossLimit) {
+                    RecoverToSearchBall(loco, state, sweep_dir, sweep_count,
+                                        ball_lost_count, person_lost_count,
+                                        person_pos,
+                                        "ball lost while approaching");
+                }
                 break;
             }
 
-            // Proportional velocity controller: drive toward (kBallReadyDist, 0).
+            ball_lost_count = 0;
+            ball_x = best_ball->position_[0];
+            ball_y = best_ball->position_[1];
+
             const double ex = ball_x - kBallReadyDistMin;
             const double ey = ball_y;
-            const double vx = std::clamp(0.8  * ex, -0.25, 0.25);
-            const double vy = std::clamp(1.0  * ey, -0.12, 0.12);
-            const double wz = std::clamp(1.2  * ey, -0.4,  0.4);
-            loco.Move(static_cast<float>(vx),
-                      static_cast<float>(vy),
-                      static_cast<float>(wz));
+            const double vx = std::clamp(0.8 * ex, -0.25, 0.25);
+            const double vy = std::clamp(1.0 * ey, -0.12, 0.12);
+            const double wz = std::clamp(1.2 * ey, -0.4, 0.4);
+            (void)loco.Move(static_cast<float>(vx),
+                            static_cast<float>(vy),
+                            static_cast<float>(wz));
 
             if (ball_x > kBallReadyDistMin && ball_x < kBallReadyDistMax &&
                 std::abs(ball_y) < kBallAlignY) {
-                loco.Move(0.f, 0.f, 0.f);
-                std::cout << "[state] Ball in range at ("
-                          << ball_x << ", " << ball_y << ") m → SEARCH_PERSON\n";
-                loco.RotateHead(0.f, 0.f);
-                sweep_dir = 1; sweep_count = 0;
+                StopMotionAndCenterHead(loco);
+                person_lost_count = 0;
+                sweep_dir = 1;
+                sweep_count = 0;
                 state = State::kSearchPerson;
+                std::cout << "[state] Ball in range -> SEARCH_PERSON\n";
             }
             break;
         }
 
-        // --------------------------------------------------------------------
         case State::kSearchPerson: {
-            if (best_person && !best_person->position_.empty()) {
-                // Lock in the first person detected during this sweep.
+            if (best_person) {
                 person_pos = best_person->position_;
-                std::cout << "[state] Person locked at ("
-                          << person_pos[0] << ", " << person_pos[1] << ") m"
-                          << " → ALIGN_BODY\n";
-                loco.RotateHead(0.f, 0.f);
+                person_lost_count = 0;
+                StopMotionAndCenterHead(loco);
                 state = State::kAlignBody;
+                std::cout << "[state] Person locked -> ALIGN_BODY\n";
                 break;
             }
-            // Pan the head to search.
-            loco.RotateHeadWithDirection(sweep_dir, /*yaw_dir=*/0);
+
+            (void)loco.RotateHeadWithDirection(sweep_dir, 0);
             ++sweep_count;
             if (sweep_count >= kSweepStepsHalf * 2) {
-                sweep_dir   = -sweep_dir;
+                sweep_dir = -sweep_dir;
                 sweep_count = 0;
-                // No person found after a full head sweep; rotate the body to
-                // bring a new sector into view.
-                loco.Move(0.f, 0.f, static_cast<float>(sweep_dir) * 0.3f);
-                std::this_thread::sleep_for(std::chrono::milliseconds(350));
-                loco.Move(0.f, 0.f, 0.f);
+                (void)loco.Move(0.0f, 0.0f, static_cast<float>(sweep_dir) * 0.30f);
+                SleepMs(300);
+                (void)loco.Move(0.0f, 0.0f, 0.0f);
             }
             break;
         }
 
-        // --------------------------------------------------------------------
         case State::kAlignBody: {
-            if (person_pos.size() < 2) {
-                // Degenerate case – skip alignment and kick anyway.
-                state = State::kKick;
+            if (best_person) {
+                person_pos = best_person->position_;
+                person_lost_count = 0;
+            } else {
+                ++person_lost_count;
+                if (person_lost_count >= kTargetLossLimit) {
+                    RecoverToSearchBall(loco, state, sweep_dir, sweep_count,
+                                        ball_lost_count, person_lost_count,
+                                        person_pos,
+                                        "person lost while aligning");
+                }
                 break;
             }
-            // Compute the angle from the robot's forward axis to the person.
-            const float person_angle =
-                std::atan2(person_pos[1], std::max(person_pos[0], kMinPersonFwdDist));
 
-            if (std::abs(person_angle) > kAlignYawThresh) {
-                // Rotate the body toward the person.
-                const float wz = std::copysign(0.3f, person_angle);
-                loco.Move(0.f, 0.f, wz);
-                std::this_thread::sleep_for(std::chrono::milliseconds(40));
-
-                // Refresh the person position after each body rotation step.
-                std::vector<DetectResults> align_objs;
-                if (RetryGetDetectionObject(vc, align_objs, 1.0f, /*max_attempts=*/2)) {
-                    for (const auto &o : align_objs) {
-                        if (IsPerson(o.tag_) && !o.position_.empty()) {
-                            person_pos = o.position_;
-                            break;
-                        }
-                    }
-                } else {
-                    // Soft-fail: keep last locked position and continue aligning.
-                    std::cerr << "[align] person refresh timeout; using last locked position.\n";
-                }
+            const float angle = std::atan2(
+                person_pos[1],
+                std::max(person_pos[0], kMinPersonFwdDist));
+            if (std::abs(angle) > kAlignYawThresh) {
+                (void)loco.Move(0.0f, 0.0f, std::copysign(0.30f, angle));
             } else {
-                loco.Move(0.f, 0.f, 0.f);
-                std::cout << "[state] Body aligned to person → KICK\n";
+                (void)loco.Move(0.0f, 0.0f, 0.0f);
                 state = State::kKick;
+                std::cout << "[state] Body aligned -> KICK\n";
             }
             break;
         }
 
-        // --------------------------------------------------------------------
         case State::kKick: {
-            loco.Move(0.f, 0.f, 0.f);
+            StopMotionAndCenterHead(loco);
+            if (person_pos.size() < 2) {
+                RecoverToSearchBall(loco, state, sweep_dir, sweep_count,
+                                    ball_lost_count, person_lost_count,
+                                    person_pos,
+                                    "kick state reached without a valid person target");
+                break;
+            }
 
-            // Kick power scales linearly with the person's distance so a nearby
-            // person receives a gentle pass and a distant one a full kick.
-            const float dist  = Dist2D(person_pos);
+            const float distance = Dist2D(person_pos);
             const float power = std::clamp(
-                kPowerMin + (kPowerMax - kPowerMin) * (dist / kPowerDist),
-                kPowerMin, kPowerMax);
+                kPowerMin + (kPowerMax - kPowerMin) * (distance / kPowerDist),
+                kPowerMin,
+                kPowerMax);
 
-            std::cout << "[kick] Target person at ("
-                      << person_pos[0] << ", " << person_pos[1] << ") m"
-                      << "  dist=" << dist << " m  power=" << power << "\n";
-
-            // Switch to kSoccer mode – required for VisualKick.
-            int rc = RetryRpc("ChangeMode(kSoccer)", [&]() -> int {
-                return loco.ChangeMode(booster::robot::RobotMode::kSoccer);
-            });
-            if (rc != 0) {
-                std::cerr << "[kick] ChangeMode(kSoccer) failed after retries: " << rc << "\n";
+            if (RetryRpc("ChangeMode(kSoccer)", [&]() -> int {
+                    return loco.ChangeMode(booster::robot::RobotMode::kSoccer);
+                }) != 0) {
                 EnterSafeState(loco);
                 g_run = false;
                 break;
             }
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            SleepMs(kPhaseModeDelayMs);
 
-            // Start the visual kick.
-            int ret = RetryRpc("VisualKick(start,kV2)", [&]() -> int {
-                return loco.VisualKick(true, VisualKickVersion::kV2);
-            });
-            if (ret == 0) {
-                // Publish kick reference frames.  goal_x/goal_y are the
-                // person's robot-frame coordinates so the robot directs the
-                // ball toward them.
-                for (int i = 0; i < kKickFrames && g_run.load(); ++i) {
-                    brain::msg::Kick msg;
-                    msg.x(static_cast<double>(ball_x));
-                    msg.y(static_cast<double>(ball_y));
-                    msg.goal_x(static_cast<double>(person_pos[0]));
-                    msg.goal_y(static_cast<double>(person_pos[1]));
-                    msg.power(static_cast<double>(power));
-                    writer->write(&msg);
-                    std::this_thread::sleep_for(std::chrono::milliseconds(33));
-                }
-                (void)RetryRpc("VisualKick(stop,kV2)", [&]() -> int {
-                    return loco.VisualKick(false, VisualKickVersion::kV2);
-                }, /*max_attempts=*/2);
-
-                // Return to safe/walking state after pass.
+            if (RetryRpc("VisualKick(true)", [&]() -> int {
+                    return loco.VisualKick(true, VisualKickVersion::kV2);
+                }) != 0) {
                 EnterSafeState(loco);
-                std::cout << "[kick] Pass complete.\n";
-            } else {
-                std::cerr << "[kick] VisualKick(start) failed after retries: " << ret << "\n";
-                EnterSafeState(loco);
+                g_run = false;
+                break;
             }
 
-            g_run = false;  // one pass per run – exit cleanly
+            const bool published = PublishKickFrames(ball_x, ball_y, person_pos, power);
+            (void)RetryRpc("VisualKick(false)", [&]() -> int {
+                return loco.VisualKick(false, VisualKickVersion::kV2);
+            }, 2);
+
+            if (!published) {
+                std::cerr << "[kick] Failed to publish kick reference frames.\n";
+            } else {
+                std::cout << "[kick] Pass complete.\n";
+            }
+
+            EnterSafeState(loco);
+            g_run = false;
             break;
         }
+        }
 
-        } // switch (state)
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        SleepMs(PollDelayMsForState(state));
     }
 
-    // -----------------------------------------------------------------------
-    // Cleanup
-    // -----------------------------------------------------------------------
     EnterSafeState(loco);
     (void)RetryRpc("StopVisionService", [&]() -> int {
-        return vc.StopVisionService();
-    }, /*max_attempts=*/2);
-
-    pub->delete_datawriter(writer);
-    participant->delete_publisher(pub);
-    participant->delete_topic(topic);
-    DomainParticipantFactory::get_instance()->delete_participant(participant);
+        return vision.StopVisionService();
+    }, 2);
     return 0;
 }
