@@ -85,6 +85,24 @@ target_link_libraries(visual_kick_ball_detect_dds_camera
     "${TINYXML2_LIB}"
     ${OpenCV_LIBS})
 
+# visual_pass_ball_to_person – head-sweep search, approach ball, sweep for
+# person, align body, then pass the ball toward the first person found.
+# Uses VisionClient (on-board detection, no ONNX model required).
+add_executable(visual_pass_ball_to_person
+    example/high_level/visual_pass_ball_to_person.cpp)
+target_include_directories(visual_pass_ball_to_person PRIVATE
+    "${CMAKE_SOURCE_DIR}/include"
+    "${THIRD_PARTY_INC}")
+target_link_directories(visual_pass_ball_to_person PRIVATE
+    "${SDK_LIB_DIR}"
+    "${THIRD_PARTY_LIB}")
+target_link_libraries(visual_pass_ball_to_person
+    booster_robotics_sdk.a
+    fastrtps
+    fastcdr
+    libfoonathan_memory-0.7.3.a
+    "${TINYXML2_LIB}")
+
 add_executable(b1_low_level_publisher example/low_level/low_level_publisher.cpp)
 add_executable(b1_low_level_subscriber example/low_level/low_level_subscriber.cpp)
 add_executable(low_level_hand_data_subscriber example/low_level/low_level_hand_data_subscriber.cpp)
