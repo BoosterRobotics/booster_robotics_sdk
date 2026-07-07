@@ -230,7 +230,7 @@ static constexpr int kKickFrames = 20;
 
 // Seconds to wait after Init() before sending RPC requests so the robot's
 // services have time to become ready.
-static constexpr int kRpcReadyDelaySecs = 2;
+static constexpr int kRpcReadyDelaySecs = 5;
 
 // Minimum forward distance used in the atan2 denominator when computing the
 // angle to the person.  Prevents near-zero division when the person is almost
@@ -238,8 +238,8 @@ static constexpr int kRpcReadyDelaySecs = 2;
 static constexpr float kMinPersonFwdDist = 0.1f;
 
 // RPC retry policy (brief retries + linear backoff).
-static constexpr int kRpcMaxAttempts = 3;           // total attempts
-static constexpr int kRpcBackoffBaseMs = 120;       // 120, 240 ms between retries
+static constexpr int kRpcMaxAttempts = 5;           // total attempts
+static constexpr int kRpcBackoffBaseMs = 300;       // 300, 600, 900, 1200 ms between retries
 
 // ---------------------------------------------------------------------------
 // Detection helpers
@@ -406,6 +406,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     std::cout << "[vision] Vision service started (position + face detection).\n";
+    // Give the vision service a moment to fully initialise before the next RPC.
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     // Enter walking mode so Move() and RotateHead() are accepted.
     if (RetryRpc("ChangeMode(kWalking)", [&]() -> int {
