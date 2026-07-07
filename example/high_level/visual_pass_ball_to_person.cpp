@@ -40,6 +40,105 @@
  *   ./visual_pass_ball_to_person  eth0
  */
 
+/**
+*START program
+
+*Initialize communication, locomotion, and vision
+*Start vision service
+*Set robot mode to WALKING
+
+*state = SEARCH_BALL
+*person_locked = false
+*run = true
+
+*WHILE run = true
+
+*    Get current detections from vision
+*    Find best ball
+*    Find best person
+
+*    IF state = SEARCH_BALL THEN
+*        IF ball is detected THEN
+*            save ball position
+*            center head
+*            state = APPROACH_BALL
+*        ELSE
+*            sweep head left/right
+*            IF one full sweep is completed THEN
+*                rotate body slightly
+*            ENDIF
+*        ENDIF
+*    ENDIF
+
+*    IF state = APPROACH_BALL THEN
+*        IF ball is not detected THEN
+*            stop walking
+*            state = SEARCH_BALL
+*        ELSE
+*            update ball position
+*            walk toward ball
+
+*            IF ball is within kicking range AND laterally aligned THEN
+*                stop walking
+*                center head
+*                state = SEARCH_PERSON
+*            ENDIF
+*        ENDIF
+*    ENDIF
+
+*    IF state = SEARCH_PERSON THEN
+*        IF person is detected THEN
+*            lock this person position
+*            center head
+*            state = ALIGN_BODY
+*        ELSE
+*            sweep head left/right
+*            IF one full sweep is completed THEN
+*                rotate body slightly
+*            ENDIF
+*        ENDIF
+*    ENDIF
+
+*    IF state = ALIGN_BODY THEN
+*        compute angle to locked person
+
+*        IF person angle is large THEN
+*            rotate body toward person
+*            refresh person position if seen again
+*        ELSE
+*            stop moving
+*            state = KICK
+*        ENDIF
+*    ENDIF
+
+*    IF state = KICK THEN
+*        stop moving
+*        compute kick power from person distance
+*        switch robot to SOCCER mode
+
+*        IF mode switch fails THEN
+*            run = false
+*        ELSE
+*            start visual kick
+*            IF kick starts successfully THEN
+*                publish kick reference for fixed number of frames
+*                stop visual kick
+*            ENDIF
+*            run = false
+*        ENDIF
+*    ENDIF
+
+*    wait 40 ms
+
+*END WHILE
+
+*Stop robot
+*Stop vision service
+*Clean up and exit
+
+*END program
+**/
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
