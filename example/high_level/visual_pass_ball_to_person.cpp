@@ -104,6 +104,15 @@ static constexpr float kPowerDist = 4.0f;   // full power at this distance (m)
 // Number of Kick reference frames to publish (~660 ms at 33 ms each).
 static constexpr int kKickFrames = 20;
 
+// Seconds to wait after Init() before sending RPC requests so the robot's
+// services have time to become ready.
+static constexpr int kRpcReadyDelaySecs = 2;
+
+// Minimum forward distance used in the atan2 denominator when computing the
+// angle to the person.  Prevents near-zero division when the person is almost
+// directly to the side.
+static constexpr float kMinPersonFwdDist = 0.1f;
+
 // ---------------------------------------------------------------------------
 // Detection helpers
 // ---------------------------------------------------------------------------
@@ -177,7 +186,7 @@ int main(int argc, char *argv[]) {
     vc.Init();
 
     // Allow RPC services to become ready
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(kRpcReadyDelaySecs));
 
     // Start the on-board vision service with position estimation and face
     // detection both enabled.  The service processes the head camera image
@@ -215,8 +224,8 @@ int main(int argc, char *argv[]) {
     float ball_x = 0.35f;
     float ball_y = 0.0f;
 
-    // Head sweep state shared between kSearchBall and kSearchPerson.
-    // pitch_direction: +1 = left, -1 = right  (per SDK docs).
+    // Head sweep pitch direction: +1 = left, -1 = right
+    // (matches the pitch_direction convention of RotateHeadWithDirection).
     int sweep_dir   =  1;
     int sweep_count =  0;
 
@@ -349,7 +358,7 @@ int main(int argc, char *argv[]) {
             }
             // Compute the angle from the robot's forward axis to the person.
             const float person_angle =
-                std::atan2(person_pos[1], std::max(person_pos[0], 0.1f));
+                std::atan2(person_pos[1], std::max(person_pos[0], kMinPersonFwdDist));
 
             if (std::abs(person_angle) > kAlignYawThresh) {
                 // Rotate the body toward the person.
