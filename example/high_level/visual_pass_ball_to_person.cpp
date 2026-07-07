@@ -43,9 +43,9 @@ enum class State {
     kKick
 };
 
-static constexpr int kPhaseInitDelayMs = 2000;
-static constexpr int kPhaseServiceDelayMs = 1500;
-static constexpr int kPhaseModeDelayMs = 1000;
+static constexpr int kPhaseInitDelayMs = 2000;      // allow discovery after each Init()
+static constexpr int kPhaseServiceDelayMs = 1500;   // allow vision service endpoints to settle
+static constexpr int kPhaseModeDelayMs = 1000;      // allow mode changes to take effect
 static constexpr int kStartupPollMs = 120;
 static constexpr int kSearchPollMs = 120;
 static constexpr int kActivePollMs = 60;
@@ -53,10 +53,13 @@ static constexpr int kRpcMaxAttempts = 4;
 static constexpr int kRpcBackoffBaseMs = 250;
 static constexpr int kPassiveValidationCycles = 5;
 static constexpr int kPassiveValidationFailureLimit = 2;
+static constexpr int kPassiveValidationRpcAttempts = 2;
 static constexpr int kActivePollFailureLimit = 2;
 static constexpr int kTargetLossLimit = 3;
 static constexpr int kSweepStepsHalf = 20;
 static constexpr int kKickFrames = 20;
+static constexpr int kKickPublishIntervalMs = 33;   // ~30 Hz kick reference stream
+static constexpr int kSearchBodyRotateMs = 300;
 
 static constexpr float kBallReadyDistMin = 0.22f;
 static constexpr float kBallReadyDistMax = 0.45f;
@@ -66,6 +69,10 @@ static constexpr float kMinPersonFwdDist = 0.10f;
 static constexpr float kPowerMin = 0.30f;
 static constexpr float kPowerMax = 0.90f;
 static constexpr float kPowerDist = 4.0f;
+static constexpr float kBallSearchBodyYawRate = 0.25f;
+// Person search widens the view a bit faster because the ball is already staged.
+static constexpr float kPersonSearchBodyYawRate = 0.30f;
+static constexpr float kAlignBodyYawRate = 0.30f;
 
 static bool IsBall(const std::string& tag) {
     return tag == "ball" || tag == "Ball";
@@ -97,8 +104,8 @@ static int PollDelayMsForState(State state) {
                : kSearchPollMs;
 }
 
-// The SDK methods used here return int32_t in this repository. If a future SDK
-// changes one of them to void, wrap that call separately instead of using RetryRpc.
+// The Booster B1 SDK methods used here return int32_t in this repository. If a
+// future SDK changes one of them to void, wrap that call separately.
 static int RetryRpc(const std::string& name,
                     const std::function<int(void)>& fn,
                     int max_attempts = kRpcMaxAttempts) {
@@ -189,7 +196,7 @@ static bool PassiveVisionValidation(VisionClient& vision) {
     int failure_count = 0;
     for (int cycle = 0; cycle < kPassiveValidationCycles && g_run.load(); ++cycle) {
         std::vector<DetectResults> objects;
-        if (RetryGetDetectionObject(vision, objects, 1.0f, 2)) {
+        if (RetryGetDetectionObject(vision, objects, 1.0f, kPassiveValidationRpcAttempts)) {
             failure_count = 0;
         } else {
             ++failure_count;
@@ -302,10 +309,11 @@ static bool PublishKickFrames(float ball_x,
 
     for (int frame = 0; frame < kKickFrames && g_run.load(); ++frame) {
         if (!publisher.Write(ball_x, ball_y, person_pos[0], person_pos[1], power)) {
-            std::cerr << "[dds] Failed to publish kick frame " << frame << ".\n";
+            std::cerr << "[dds] Failed to publish kick frame "
+                      << frame << "/" << kKickFrames << ".\n";
             return false;
         }
-        SleepMs(33);
+        SleepMs(kKickPublishIntervalMs);
     }
 
     return true;
@@ -434,8 +442,9 @@ int main(int argc, char* argv[]) {
             if (sweep_count >= kSweepStepsHalf * 2) {
                 sweep_dir = -sweep_dir;
                 sweep_count = 0;
-                (void)loco.Move(0.0f, 0.0f, static_cast<float>(sweep_dir) * 0.25f);
-                SleepMs(300);
+                (void)loco.Move(0.0f, 0.0f,
+                                static_cast<float>(sweep_dir) * kBallSearchBodyYawRate);
+                SleepMs(kSearchBodyRotateMs);
                 (void)loco.Move(0.0f, 0.0f, 0.0f);
             }
             break;
@@ -493,8 +502,9 @@ int main(int argc, char* argv[]) {
             if (sweep_count >= kSweepStepsHalf * 2) {
                 sweep_dir = -sweep_dir;
                 sweep_count = 0;
-                (void)loco.Move(0.0f, 0.0f, static_cast<float>(sweep_dir) * 0.30f);
-                SleepMs(300);
+                (void)loco.Move(0.0f, 0.0f,
+                                static_cast<float>(sweep_dir) * kPersonSearchBodyYawRate);
+                SleepMs(kSearchBodyRotateMs);
                 (void)loco.Move(0.0f, 0.0f, 0.0f);
             }
             break;
@@ -519,7 +529,7 @@ int main(int argc, char* argv[]) {
                 person_pos[1],
                 std::max(person_pos[0], kMinPersonFwdDist));
             if (std::abs(angle) > kAlignYawThresh) {
-                (void)loco.Move(0.0f, 0.0f, std::copysign(0.30f, angle));
+                (void)loco.Move(0.0f, 0.0f, std::copysign(kAlignBodyYawRate, angle));
             } else {
                 (void)loco.Move(0.0f, 0.0f, 0.0f);
                 state = State::kKick;
