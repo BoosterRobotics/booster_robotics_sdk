@@ -73,6 +73,13 @@ using booster::robot::ChannelSubscriber;
 static std::atomic<bool> g_run{true};
 void sigint_handler(int) { g_run = false; }
 
+// ---------------------------------------------------------------------------
+// Kick parameters (tune to match your field and ball)
+// ---------------------------------------------------------------------------
+static constexpr double kGoalX    = 4.5;
+static constexpr double kGoalY    = 0.0;
+static constexpr double kKickPower = 0.85;
+
 // Thread-safe latest frame shared between the DDS callback and the main loop.
 static cv::Mat  g_latest_frame;
 static std::mutex g_frame_mutex;
@@ -410,20 +417,19 @@ int main(int argc, char* argv[]) {
         // Project bounding-box centre to approximate ground-plane distances.
         // Replace with a proper BallPoseEstimator when calibration data is available.
         const int   cx_px  = det.box.x + det.box.width  / 2;
-        const int   cy_px  = det.box.y + det.box.height / 2;
         const float img_w  = static_cast<float>(frame.cols);
-        const float img_h  = static_cast<float>(frame.rows);
 
-        // Normalised image-plane offset from centre  [-0.5 .. 0.5]
+        // Normalised image-plane horizontal offset from centre  [-0.5 .. 0.5]
         const float nx = (static_cast<float>(cx_px) / img_w) - 0.5f;
-        const float ny = (static_cast<float>(cy_px) / img_h) - 0.5f;
 
         // Heuristic ground-plane estimate (tune for your robot + camera mount):
         //   - Larger ball bbox  → ball is closer  → smaller ball_x
         //   - Positive nx       → ball is to the right → positive ball_y
-        const float bbox_diag = std::sqrt(float(det.box.width  * det.box.width +
-                                                det.box.height * det.box.height));
-        ball_x = std::clamp(0.35f * (120.f / (bbox_diag + 1.f)), 0.15f, 2.0f);
+        // Use squared diagonal to avoid the square-root in the hot loop;
+        // the constant 14400 = 120² compensates so that the formula is equivalent.
+        const float bbox_diag_sq = float(det.box.width  * det.box.width +
+                                         det.box.height * det.box.height);
+        ball_x = std::clamp(0.35f * (14400.f / (bbox_diag_sq + 1.f)), 0.15f, 2.0f);
         ball_y = std::clamp(nx * 0.8f, -0.5f, 0.5f);
 
         // ---- Approach controller -------------------------------------------
@@ -453,14 +459,13 @@ int main(int argc, char* argv[]) {
             int ret = loco.VisualKick(true, VisualKickVersion::kV2);
 
             if (ret == 0) {
-                const double goal_x = 4.5, goal_y = 0.0, power = 0.85;
                 for (int i = 0; i < 20 && g_run.load(); ++i) {
                     brain::msg::Kick msg;
                     msg.x(ball_x);
                     msg.y(ball_y);
-                    msg.goal_x(goal_x);
-                    msg.goal_y(goal_y);
-                    msg.power(power);
+                    msg.goal_x(kGoalX);
+                    msg.goal_y(kGoalY);
+                    msg.power(kKickPower);
                     writer->write(&msg);
                     std::this_thread::sleep_for(std::chrono::milliseconds(33));
                 }
