@@ -34,6 +34,13 @@
  *                   scaled linearly with the person's distance (clipped to
  *                   [kPowerMin, kPowerMax]).
  *
+ * Robustness
+ * ──────────
+ *   RPC calls are treated as transient-failure prone.  The program retries
+ *   briefly with backoff, fails softly on repeated timeout/failure, and returns
+ *   to a safe state (stop motion, centre head, best-effort walking mode)
+ *   instead of treating every timeout as fatal.
+ *
  * Usage:
  *   ./visual_pass_ball_to_person  <networkInterface>
  * Example:
@@ -44,8 +51,14 @@
 *START program
 
 *Initialize communication, locomotion, and vision
-*Start vision service
-*Set robot mode to WALKING
+*Start vision service with brief retries/backoff
+*IF vision start keeps failing THEN
+*    enter safe state and exit
+*ENDIF
+*Set robot mode to WALKING with brief retries/backoff
+*IF mode set keeps failing THEN
+*    enter safe state and exit
+*ENDIF
 
 *state = SEARCH_BALL
 *person_locked = false
@@ -53,10 +66,18 @@
 
 *WHILE run = true
 
-*    Get current detections from vision
+*    Get current detections from vision with brief retries/backoff
+*    IF detection request times out repeatedly THEN
+*        fail softly:
+*            if in approach/alignment, stop and return to SEARCH_BALL
+*            otherwise continue sweeping/searching
+*        wait 40 ms
+*        continue loop
+*    ENDIF
+*
 *    Find best ball
 *    Find best person
-
+*
 *    IF state = SEARCH_BALL THEN
 *        IF ball is detected THEN
 *            save ball position
@@ -69,7 +90,7 @@
 *            ENDIF
 *        ENDIF
 *    ENDIF
-
+*
 *    IF state = APPROACH_BALL THEN
 *        IF ball is not detected THEN
 *            stop walking
@@ -77,7 +98,7 @@
 *        ELSE
 *            update ball position
 *            walk toward ball
-
+*
 *            IF ball is within kicking range AND laterally aligned THEN
 *                stop walking
 *                center head
@@ -85,7 +106,7 @@
 *            ENDIF
 *        ENDIF
 *    ENDIF
-
+*
 *    IF state = SEARCH_PERSON THEN
 *        IF person is detected THEN
 *            lock this person position
@@ -98,44 +119,47 @@
 *            ENDIF
 *        ENDIF
 *    ENDIF
-
+*
 *    IF state = ALIGN_BODY THEN
 *        compute angle to locked person
-
+*
 *        IF person angle is large THEN
 *            rotate body toward person
-*            refresh person position if seen again
+*            refresh person position if seen again (with retries)
 *        ELSE
 *            stop moving
 *            state = KICK
 *        ENDIF
 *    ENDIF
-
+*
 *    IF state = KICK THEN
 *        stop moving
 *        compute kick power from person distance
-*        switch robot to SOCCER mode
-
+*        switch robot to SOCCER mode with retries
+*
 *        IF mode switch fails THEN
+*            enter safe state
 *            run = false
 *        ELSE
-*            start visual kick
+*            start visual kick with retries
 *            IF kick starts successfully THEN
 *                publish kick reference for fixed number of frames
-*                stop visual kick
+*                stop visual kick (best effort)
+*            ELSE
+*                enter safe state
 *            ENDIF
 *            run = false
 *        ENDIF
 *    ENDIF
-
+*
 *    wait 40 ms
-
+*
 *END WHILE
-
+*
 *Stop robot
-*Stop vision service
+*Stop vision service (best effort)
 *Clean up and exit
-
+*
 *END program
 **/
 
@@ -148,6 +172,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <functional>
 
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/DomainParticipant.hpp>
@@ -212,6 +237,10 @@ static constexpr int kRpcReadyDelaySecs = 2;
 // directly to the side.
 static constexpr float kMinPersonFwdDist = 0.1f;
 
+// RPC retry policy (brief retries + linear backoff).
+static constexpr int kRpcMaxAttempts = 3;           // total attempts
+static constexpr int kRpcBackoffBaseMs = 120;       // 120, 240 ms between retries
+
 // ---------------------------------------------------------------------------
 // Detection helpers
 // ---------------------------------------------------------------------------
@@ -231,6 +260,82 @@ static bool IsPerson(const std::string &tag) {
 static float Dist2D(const std::vector<float> &pos) {
     if (pos.size() < 2) return 9999.f;
     return std::hypot(pos[0], pos[1]);
+}
+
+/** Generic brief retry helper for RPC-like calls; success when fn() returns 0. */
+static int RetryRpc(const std::string &name,
+                    const std::function<int(void)> &fn,
+                    int max_attempts = kRpcMaxAttempts) {
+    int rc = -1;
+    for (int attempt = 1; attempt <= max_attempts && g_run.load(); ++attempt) {
+        rc = fn();
+        if (rc == 0) {
+            if (attempt > 1) {
+                std::cout << "[rpc] " << name << " recovered on attempt "
+                          << attempt << "/" << max_attempts << "\n";
+            }
+            return 0;
+        }
+
+        if (attempt < max_attempts) {
+            const int backoff_ms = kRpcBackoffBaseMs * attempt;
+            std::cerr << "[rpc] " << name << " failed rc=" << rc
+                      << " (attempt " << attempt << "/" << max_attempts
+                      << "), retrying in " << backoff_ms << " ms\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+        }
+    }
+
+    std::cerr << "[rpc] " << name << " failed after " << max_attempts
+              << " attempts, rc=" << rc << "\n";
+    return rc;
+}
+
+/** Retry wrapper for vision detection polling. */
+static bool RetryGetDetectionObject(VisionClient &vc,
+                                    std::vector<DetectResults> &objs,
+                                    float ratio,
+                                    int max_attempts = kRpcMaxAttempts) {
+    for (int attempt = 1; attempt <= max_attempts && g_run.load(); ++attempt) {
+        objs.clear();
+        try {
+            vc.GetDetectionObject(objs, ratio);
+            return true;
+        } catch (const std::exception &e) {
+            if (attempt < max_attempts) {
+                const int backoff_ms = kRpcBackoffBaseMs * attempt;
+                std::cerr << "[vision] GetDetectionObject exception: " << e.what()
+                          << " (attempt " << attempt << "/" << max_attempts
+                          << "), retrying in " << backoff_ms << " ms\n";
+                std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+            } else {
+                std::cerr << "[vision] GetDetectionObject failed after retries: "
+                          << e.what() << "\n";
+            }
+        } catch (...) {
+            if (attempt < max_attempts) {
+                const int backoff_ms = kRpcBackoffBaseMs * attempt;
+                std::cerr << "[vision] GetDetectionObject unknown failure"
+                          << " (attempt " << attempt << "/" << max_attempts
+                          << "), retrying in " << backoff_ms << " ms\n";
+                std::this_thread::sleep_for(std::chrono::milliseconds(backoff_ms));
+            } else {
+                std::cerr << "[vision] GetDetectionObject failed after retries"
+                          << " (unknown error)\n";
+            }
+        }
+    }
+    return false;
+}
+
+/** Safe state: stop robot motion and best-effort return to walking mode. */
+static void EnterSafeState(B1LocoClient &loco) {
+    std::cerr << "[safe] Entering safe state: stop motion, centre head, walking mode.\n";
+    loco.Move(0.f, 0.f, 0.f);
+    loco.RotateHead(0.f, 0.f);
+    (void)RetryRpc("ChangeMode(kWalking)", [&]() -> int {
+        return loco.ChangeMode(booster::robot::RobotMode::kWalking);
+    }, /*max_attempts=*/2);
 }
 
 // ---------------------------------------------------------------------------
@@ -288,19 +393,27 @@ int main(int argc, char *argv[]) {
     std::this_thread::sleep_for(std::chrono::seconds(kRpcReadyDelaySecs));
 
     // Start the on-board vision service with position estimation and face
-    // detection both enabled.  The service processes the head camera image
-    // internally; GetDetectionObject() retrieves the latest results.
-    int32_t vs_ret = vc.StartVisionService(/*enable_position=*/true,
-                                           /*enable_color=*/false,
-                                           /*enable_face_detection=*/true);
+    // detection both enabled.  Retries briefly before soft failure.
+    int32_t vs_ret = RetryRpc("StartVisionService", [&]() -> int {
+        return vc.StartVisionService(/*enable_position=*/true,
+                                     /*enable_color=*/false,
+                                     /*enable_face_detection=*/true);
+    });
     if (vs_ret != 0) {
-        std::cerr << "[vision] StartVisionService failed: " << vs_ret << "\n";
+        std::cerr << "[vision] StartVisionService failed after retries: "
+                  << vs_ret << "\n";
+        EnterSafeState(loco);
         return 1;
     }
     std::cout << "[vision] Vision service started (position + face detection).\n";
 
     // Enter walking mode so Move() and RotateHead() are accepted.
-    loco.ChangeMode(booster::robot::RobotMode::kWalking);
+    if (RetryRpc("ChangeMode(kWalking)", [&]() -> int {
+            return loco.ChangeMode(booster::robot::RobotMode::kWalking);
+        }) != 0) {
+        EnterSafeState(loco);
+        return 1;
+    }
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // -----------------------------------------------------------------------
@@ -336,7 +449,20 @@ int main(int argc, char *argv[]) {
         // Use the full image width during search phases so nothing is missed;
         // tighten the ratio when approaching the ball to reduce false matches.
         const float ratio = (state == State::kApproachBall) ? 0.33f : 1.0f;
-        vc.GetDetectionObject(objs, ratio);
+
+        if (!RetryGetDetectionObject(vc, objs, ratio)) {
+            // Soft-fail behavior on repeated timeout/failure:
+            // - if actively moving/aligning, stop and re-search ball
+            // - otherwise continue sweeping/searching
+            std::cerr << "[vision] detection polling unavailable; soft-fail path.\n";
+            if (state == State::kApproachBall || state == State::kAlignBody) {
+                loco.Move(0.f, 0.f, 0.f);
+                sweep_dir = 1; sweep_count = 0;
+                state = State::kSearchBall;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
+            continue;
+        }
 
         // Find the highest-confidence ball and person in this frame.
         const DetectResults *best_ball   = nullptr;
@@ -467,12 +593,16 @@ int main(int argc, char *argv[]) {
 
                 // Refresh the person position after each body rotation step.
                 std::vector<DetectResults> align_objs;
-                vc.GetDetectionObject(align_objs, 1.0f);
-                for (const auto &o : align_objs) {
-                    if (IsPerson(o.tag_) && !o.position_.empty()) {
-                        person_pos = o.position_;
-                        break;
+                if (RetryGetDetectionObject(vc, align_objs, 1.0f, /*max_attempts=*/2)) {
+                    for (const auto &o : align_objs) {
+                        if (IsPerson(o.tag_) && !o.position_.empty()) {
+                            person_pos = o.position_;
+                            break;
+                        }
                     }
+                } else {
+                    // Soft-fail: keep last locked position and continue aligning.
+                    std::cerr << "[align] person refresh timeout; using last locked position.\n";
                 }
             } else {
                 loco.Move(0.f, 0.f, 0.f);
@@ -498,16 +628,21 @@ int main(int argc, char *argv[]) {
                       << "  dist=" << dist << " m  power=" << power << "\n";
 
             // Switch to kSoccer mode – required for VisualKick.
-            int rc = loco.ChangeMode(booster::robot::RobotMode::kSoccer);
+            int rc = RetryRpc("ChangeMode(kSoccer)", [&]() -> int {
+                return loco.ChangeMode(booster::robot::RobotMode::kSoccer);
+            });
             if (rc != 0) {
-                std::cerr << "[kick] ChangeMode(kSoccer) failed: " << rc << "\n";
+                std::cerr << "[kick] ChangeMode(kSoccer) failed after retries: " << rc << "\n";
+                EnterSafeState(loco);
                 g_run = false;
                 break;
             }
             std::this_thread::sleep_for(std::chrono::seconds(2));
 
             // Start the visual kick.
-            int ret = loco.VisualKick(true, VisualKickVersion::kV2);
+            int ret = RetryRpc("VisualKick(start,kV2)", [&]() -> int {
+                return loco.VisualKick(true, VisualKickVersion::kV2);
+            });
             if (ret == 0) {
                 // Publish kick reference frames.  goal_x/goal_y are the
                 // person's robot-frame coordinates so the robot directs the
@@ -522,10 +657,16 @@ int main(int argc, char *argv[]) {
                     writer->write(&msg);
                     std::this_thread::sleep_for(std::chrono::milliseconds(33));
                 }
-                loco.VisualKick(false, VisualKickVersion::kV2);
+                (void)RetryRpc("VisualKick(stop,kV2)", [&]() -> int {
+                    return loco.VisualKick(false, VisualKickVersion::kV2);
+                }, /*max_attempts=*/2);
+
+                // Return to safe/walking state after pass.
+                EnterSafeState(loco);
                 std::cout << "[kick] Pass complete.\n";
             } else {
-                std::cerr << "[kick] VisualKick(start) failed: " << ret << "\n";
+                std::cerr << "[kick] VisualKick(start) failed after retries: " << ret << "\n";
+                EnterSafeState(loco);
             }
 
             g_run = false;  // one pass per run – exit cleanly
@@ -540,8 +681,10 @@ int main(int argc, char *argv[]) {
     // -----------------------------------------------------------------------
     // Cleanup
     // -----------------------------------------------------------------------
-    loco.Move(0.f, 0.f, 0.f);
-    vc.StopVisionService();
+    EnterSafeState(loco);
+    (void)RetryRpc("StopVisionService", [&]() -> int {
+        return vc.StopVisionService();
+    }, /*max_attempts=*/2);
 
     pub->delete_datawriter(writer);
     participant->delete_publisher(pub);
