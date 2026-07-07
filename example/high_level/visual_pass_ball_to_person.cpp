@@ -186,6 +186,7 @@
 #include <booster/robot/channel/channel_factory.hpp>
 #include <booster/robot/vision/vision_client.hpp>
 #include <booster/idl/b1/Kick.h>
+#include <fastdds/dds/publication/DataWriter.hpp>  // for get_publication_matched_status    
 
 using namespace eprosima::fastdds::dds;
 using booster::robot::b1::B1LocoClient;
