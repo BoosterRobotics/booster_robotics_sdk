@@ -3,6 +3,7 @@
 
 #include <string>
 #include <booster/third_party/nlohmann_json/json.hpp>
+#include <booster/robot/common/device_info.hpp>
 #include <booster/robot/b1/b1_api_const.hpp>
 #include <booster/robot/common/entities.hpp>
 #include <booster/robot/common/robot_shared.hpp>
@@ -59,12 +60,17 @@ enum class LocoApiId {
     kLionDanceStart = 2040,
     kLionDanceMove = 2041,
     kSwitchGait = 2042,
+    kRotateHeadWithTime = 2043,
+    kGetSensors = 2044,
+    kGetHands = 2045,
+    kGetRobotModel = 2046,
 };
 
 enum class GaitType {
     kWholeBodyHumanlikeGait = 0,
     kHalfBodyHumanlikeGait = 1,
     kHalfBodyHumanlikeGaitV2 = 2,
+    kWholeBodyHumanlikeGaitV2 = 3,
 };
 
 class RotateHeadParameter {
@@ -91,6 +97,38 @@ public:
 public:
     float pitch_;
     float yaw_;
+};
+
+class RotateHeadWithTimeParameter {
+public:
+    RotateHeadWithTimeParameter() = default;
+
+    RotateHeadWithTimeParameter(float pitch, float yaw, int time_millis) :
+        pitch_(pitch),
+        yaw_(yaw),
+        time_millis_(time_millis) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        pitch_ = json["pitch"];
+        yaw_ = json["yaw"];
+        time_millis_ = json["time_millis"];
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+
+        json["pitch"] = pitch_;
+        json["yaw"] = yaw_;
+        json["time_millis"] = time_millis_;
+        return json;
+    }
+
+public:
+    float pitch_;
+    float yaw_;
+    int time_millis_;
 };
 
 class ChangeModeParameter {
@@ -280,25 +318,63 @@ public:
     int yaw_direction_;
 };
 
+enum class GetUpVersion {
+    kV1 = 0, // Initial/Base get-up behavior
+    kV2 = 1, // BMM get-up behavior
+};
+
+class GetUpParameter {
+public:
+    GetUpParameter() = default;
+    GetUpParameter(GetUpVersion version) :
+        version_(version) {
+    }
+
+public:
+    void FromJson(nlohmann::json &json) {
+        if (json.contains("version")) {
+            version_ = static_cast<GetUpVersion>(json["version"]);
+        } else {
+            version_ = GetUpVersion::kV1;
+        }
+    }
+
+    nlohmann::json ToJson() const {
+        nlohmann::json json;
+        json["version"] = static_cast<int>(version_);
+        return json;
+    }
+
+public:
+    GetUpVersion version_ = GetUpVersion::kV1;
+};
+
 class GetUpWithModeParameter {
 public:
     GetUpWithModeParameter() = default;
-    GetUpWithModeParameter(booster::robot::RobotMode mode) :
-        mode_(mode) {
+    GetUpWithModeParameter(booster::robot::RobotMode mode, GetUpVersion version = GetUpVersion::kV1) :
+        mode_(mode), version_(version) {
     }
 
 public:
     void FromJson(nlohmann::json &json) {
         mode_ = static_cast<booster::robot::RobotMode>(json["mode"]);
+        if (json.contains("version")) {
+            version_ = static_cast<GetUpVersion>(json["version"]);
+        } else {
+            version_ = GetUpVersion::kV1;
+        }
     }
     nlohmann::json ToJson() const {
         nlohmann::json json;
         json["mode"] = static_cast<int>(mode_);
+        json["version"] = static_cast<int>(version_);
         return json;
     }
 
 public:
-    booster::robot::RobotMode mode_;
+    booster::robot::RobotMode mode_ = booster::robot::RobotMode::kUnknown;
+    GetUpVersion version_ = GetUpVersion::kV1;
 };
 
 class WaveHandParameter {

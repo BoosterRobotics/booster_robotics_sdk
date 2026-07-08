@@ -5,8 +5,6 @@
 
 #include <booster/common/dds/dds_entity.hpp>
 
-using namespace eprosima::fastdds::dds;
-
 namespace booster {
 namespace common {
 
@@ -22,7 +20,7 @@ public:
 
     void SetWriter(
         const DdsPublisherPtr &publisher,
-        const DataWriterQos &qos) {
+        const DdsDataWriterQos &qos) {
         if (publisher == nullptr || topic_ == nullptr) {
             std::cerr << "Failed to create writer: publisher or topic is not initialized." << std::endl;
             return;
@@ -37,7 +35,7 @@ public:
 
     void SetReader(
         const DdsSubscriberPtr &subscriber,
-        const DataReaderQos &qos,
+        const DdsDataReaderQos &qos,
         const DdsReaderCallback &cb,
         const DdsReaderExecutorOptions &executor_options = {}) {
         if (subscriber == nullptr || topic_ == nullptr) {
@@ -76,7 +74,7 @@ public:
             return 0;
         }
 
-        PublicationMatchedStatus status;
+        DdsPublicationMatchedStatus status;
         if (writer_->get_publication_matched_status(status) != ReturnCode_t::RETCODE_OK) {
             return 0;
         }
@@ -89,7 +87,7 @@ public:
             return 0;
         }
 
-        SubscriptionMatchedStatus status;
+        DdsSubscriptionMatchedStatus status;
         if (reader_->get_subscription_matched_status(status) != ReturnCode_t::RETCODE_OK) {
             return 0;
         }

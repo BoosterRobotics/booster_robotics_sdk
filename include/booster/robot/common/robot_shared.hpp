@@ -24,10 +24,11 @@ enum class BodyControl {
     kGetUp = 7,                 // Get up body control, in get up body control, the robot can get up from lying down
     kWholeBodyDance = 8,        // Whole body dance body control, in whole body dance, the robot can do some whole body dance actions
     kShoot = 9,                 // Shoot body control, in shoot body control, the robot can scored with a powerful shot
-    kInsideFoot = 10,           // Inside foot kick body control, in inside foot kick body control, the robot can do precise inside foot kick actions
+    kInsideFoot = 10,           // History caused name, actually is visual kick body control V2
     kGoalie = 11,               // Goalie body control, in goalie body control, the robot can perform goalie actions
     kWBCGait = 12,              // Whole body control gait body control, in WBC gait, the robot walking by whole body control
     kLionDancePreparePose = 13, // Lion dance prepare pose, in this body control, the robot will do lion dance prepare pose
+    kVisualKickV1 = 14,         // Visual kick body control V1, in visual kick body control, the robot can do visual kick actions
 };
 
 enum class Action {

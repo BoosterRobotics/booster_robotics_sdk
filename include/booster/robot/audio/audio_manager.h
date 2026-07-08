@@ -6,10 +6,13 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <booster/idl/audio/AudioErrorTopic.h>
 #include <booster/idl/audio/AudioEventTopic.h>
 #include <booster/idl/audio/AudioProgressTopic.h>
+#include <booster/idl/audio/BluetoothEventTopic.h>
+#include <booster/robot/audio/audio_types.h>
 #include <booster/robot/channel/channel_subscriber.hpp>
 #include <booster/robot/rpc/rpc_client.hpp>
 #include <booster/third_party/nlohmann_json/json.hpp>
@@ -21,7 +24,6 @@ namespace audio {
 class AudioPlayer;
 class AudioRecorder;
 class AudioLocalizer;
-class AudioSystemController;
 class AudioCaptureStream;
 
 class AudioManager {
@@ -30,6 +32,47 @@ public:
     using ProgressCallback = std::function<void(const booster_msgs::audio::AudioProgressTopic &)>;
     using EventCallback = std::function<void(const booster_msgs::audio::AudioEventTopic &)>;
     using ErrorCallback = std::function<void(const booster_msgs::audio::AudioErrorTopic &)>;
+    using BluetoothEventCallback =
+        std::function<void(const booster_msgs::audio::BluetoothEventTopic &)>;
+
+    AudioManager();
+    ~AudioManager();
+
+    int32_t Init();
+    void Shutdown();
+
+    bool IsInitialized() const;
+    std::string GetClientId() const;
+    std::string GenerateRequestId();
+
+    std::shared_ptr<AudioPlayer> CreatePlayer();
+    std::shared_ptr<AudioRecorder> CreateRecorder();
+    std::shared_ptr<AudioLocalizer> CreateLocalizer();
+    std::shared_ptr<AudioCaptureStream> CreateCaptureStream();
+
+    int32_t SetSystemVolume(float volume);
+    int32_t GetSystemVolume(float *volume);
+    int32_t SetSystemMute(bool mute);
+    int32_t GetSystemMute(bool *mute);
+    int32_t GetDevices(AudioDeviceQueryType query_type, std::vector<AudioDeviceInfo> *devices);
+
+    int32_t StartBluetoothScan(const BluetoothScanOptions &options);
+    int32_t StopBluetoothScan();
+    int32_t GetBluetoothDevices(bool include_unpaired, std::vector<BluetoothDeviceInfo> *devices);
+    int32_t ConnectBluetoothDevice(
+        const BluetoothConnectOptions &options, BluetoothConnectResult *result);
+    int32_t DisconnectBluetoothDevice(const std::string &address);
+    int32_t ForgetBluetoothDevice(const std::string &address);
+    void SetProgressCallback(ProgressCallback callback);
+    void SetEventCallback(EventCallback callback);
+    void SetErrorCallback(ErrorCallback callback);
+    void SetBluetoothEventCallback(BluetoothEventCallback callback);
+
+private:
+    friend class AudioPlayer;
+    friend class AudioRecorder;
+    friend class AudioCaptureStream;
+    friend class AudioLocalizer;
 
     enum class ServiceMethod : int32_t {
         kRegisterClient = 0,
@@ -59,42 +102,32 @@ public:
         kStopCaptureStream,
         kDestroyCaptureStream,
         kGetCaptureStreamInfo,
+        kGetDevices,
+        kSetPreferredDevice,
+        kStartBluetoothScan,
+        kStopBluetoothScan,
+        kGetBluetoothDevices,
+        kConnectBluetoothDevice,
+        kDisconnectBluetoothDevice,
+        kForgetBluetoothDevice,
     };
 
-    AudioManager();
-    ~AudioManager();
-
-    int32_t Init();
-    void Shutdown();
-
-    bool IsInitialized() const;
-    std::string GetClientId() const;
-    std::string GenerateRequestId();
-
-    std::shared_ptr<AudioPlayer> CreatePlayer();
-    std::shared_ptr<AudioRecorder> CreateRecorder();
-    std::shared_ptr<AudioLocalizer> CreateLocalizer();
-    std::shared_ptr<AudioSystemController> CreateSystemController();
-    std::shared_ptr<AudioCaptureStream> CreateCaptureStream();
+    static_assert(static_cast<int32_t>(ServiceMethod::kForgetBluetoothDevice) == 34,
+                  "AudioManager::ServiceMethod must stay in lock-step with"
+                  " booster::audio::AudioRpcMethod (bluetooth methods occupy 29..34)");
 
     int32_t CallService(ServiceMethod method, const Json &request, Json *response = nullptr,
         int64_t timeout_ms = 1000);
 
-    void SetProgressCallback(ProgressCallback callback);
-    void SetEventCallback(EventCallback callback);
-    void SetErrorCallback(ErrorCallback callback);
-
-private:
-    friend class AudioPlayer;
-    friend class AudioRecorder;
-    friend class AudioCaptureStream;
-
     int64_t AddProgressListener(ProgressCallback callback);
+
     void RemoveProgressListener(int64_t listener_id);
     int64_t AddEventListener(EventCallback callback);
     void RemoveEventListener(int64_t listener_id);
     int64_t AddErrorListener(ErrorCallback callback);
     void RemoveErrorListener(int64_t listener_id);
+    int64_t AddBluetoothEventListener(BluetoothEventCallback callback);
+    void RemoveBluetoothEventListener(int64_t listener_id);
 
     int32_t RegisterClientLocked();
     void PrewarmRpcClientsLocked();
@@ -108,6 +141,7 @@ private:
     void HandleProgress(const void *msg);
     void HandleEvent(const void *msg);
     void HandleError(const void *msg);
+    void HandleBluetoothEvent(const void *msg);
 
     static const char *GetRpcChannelName(ServiceMethod method);
 
@@ -119,16 +153,20 @@ private:
     ProgressCallback progress_callback_;
     EventCallback event_callback_;
     ErrorCallback error_callback_;
+    BluetoothEventCallback bluetooth_event_callback_;
     int64_t next_listener_id_{1};
     std::unordered_map<int64_t, ProgressCallback> progress_listeners_;
     std::unordered_map<int64_t, EventCallback> event_listeners_;
     std::unordered_map<int64_t, ErrorCallback> error_listeners_;
+    std::unordered_map<int64_t, BluetoothEventCallback> bluetooth_event_listeners_;
     std::shared_ptr<booster::robot::ChannelSubscriber<booster_msgs::audio::AudioProgressTopic>>
         progress_subscriber_;
     std::shared_ptr<booster::robot::ChannelSubscriber<booster_msgs::audio::AudioEventTopic>>
         event_subscriber_;
     std::shared_ptr<booster::robot::ChannelSubscriber<booster_msgs::audio::AudioErrorTopic>>
         error_subscriber_;
+    std::shared_ptr<booster::robot::ChannelSubscriber<booster_msgs::audio::BluetoothEventTopic>>
+        bluetooth_event_subscriber_;
 };
 
 } // namespace audio

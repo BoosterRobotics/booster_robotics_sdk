@@ -6,8 +6,6 @@
 #include <booster/robot/rpc/rpc_client.hpp>
 #include <booster/robot/x5_camera/x5_camera_api.hpp>
 
-using namespace booster::robot;
-
 namespace booster {
 namespace robot {
 namespace x5_camera {

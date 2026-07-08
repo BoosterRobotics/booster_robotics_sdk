@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include <booster/robot/audio/audio_types.h>
 
@@ -29,6 +30,7 @@ public:
     int32_t Release();
 
     int32_t SetVolume(float volume);
+    int32_t SetPreferredDevice(const std::string &device_id);
     int32_t GetInfo(PlayerInfo *out) const;
     int32_t PushPcmStream(const uint8_t *data, size_t size);
 

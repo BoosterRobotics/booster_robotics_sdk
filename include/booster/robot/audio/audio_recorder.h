@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include <booster/robot/audio/audio_types.h>
 
@@ -27,6 +28,7 @@ public:
     int32_t Release();
 
     int32_t GetInfo(RecorderInfo *out) const;
+    int32_t SetPreferredDevice(const std::string &device_id);
 
     int64_t GetSessionId() const;
     RecorderState GetCachedState() const;

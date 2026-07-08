@@ -53,6 +53,7 @@ private:
 
     std::shared_ptr<ChannelPublisher<booster_msgs::msg::RpcReqMsg>> channel_publisher_;
     std::shared_ptr<ChannelSubscriber<booster_msgs::msg::RpcRespMsg>> channel_subscriber_;
+    std::string channel_name_;
 };
 
 }

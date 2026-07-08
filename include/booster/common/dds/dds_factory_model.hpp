@@ -42,7 +42,7 @@ public:
 
     template <typename MSG>
     DdsTopicChannelPtr<MSG> CreateTopicChannel(const std::string &topic_name) {
-        TypeSupport type_support(new MSG());
+        DdsTypeSupport type_support(new MSG());
         DdsTopicChannelPtr<MSG> topic_channel = std::make_shared<DdsTopicChannel<MSG>>();
         if (participant_ == nullptr) {
             std::cerr << "Failed to create participant." << std::endl;
@@ -52,7 +52,7 @@ public:
         if (topic == nullptr) {
             type_support.register_type(participant_.get());
             topic = DdsTopicPtr(
-                participant_->create_topic(topic_name, type_support.get_type_name(), TOPIC_QOS_DEFAULT),
+                participant_->create_topic(topic_name, type_support.get_type_name(), booster_eprosima::fastdds::dds::TOPIC_QOS_DEFAULT),
                 [](DdsTopic *topic) {});
             if (topic == nullptr) {
                 std::cerr << "Failed to create topic." << std::endl;
@@ -75,7 +75,7 @@ public:
         }
         auto writer_qos = writer_qos_;
         if (reliable) {
-            writer_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+            writer_qos.reliability().kind = booster_eprosima::fastdds::dds::RELIABLE_RELIABILITY_QOS;
         }
         topic_channel->SetWriter(publisher_, writer_qos);
     }
@@ -93,7 +93,7 @@ public:
         DdsReaderCallback cb(handler);
         auto reader_qos = reader_qos_;
         if (reliable) {
-            reader_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+            reader_qos.reliability().kind = booster_eprosima::fastdds::dds::RELIABLE_RELIABILITY_QOS;
         }
         topic_channel->SetReader(subscriber_, reader_qos, cb, executor_options);
     }
@@ -105,12 +105,12 @@ private:
 
     std::map<std::string, DdsTopicPtr> topic_map_;
 
-    DomainParticipantQos participant_qos_;
-    TopicQos topic_qos_;
-    PublisherQos publisher_qos_;
-    SubscriberQos subscriber_qos_;
-    DataWriterQos writer_qos_;
-    DataReaderQos reader_qos_;
+    DdsDomainParticipantQos participant_qos_;
+    DdsTopicQos topic_qos_;
+    DdsPublisherQos publisher_qos_;
+    DdsSubscriberQos subscriber_qos_;
+    DdsDataWriterQos writer_qos_;
+    DdsDataReaderQos reader_qos_;
 };
 
 using DdsFactoryModelPtr = std::shared_ptr<DdsFactoryModel>;
